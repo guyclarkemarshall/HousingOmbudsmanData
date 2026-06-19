@@ -1,4 +1,5 @@
 ombudsman_decisions.db
+ombudsman_insights.db
 __pycache__/
 .idea/
 .vscode/
