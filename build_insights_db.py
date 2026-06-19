@@ -11,7 +11,7 @@ import sqlite3
 
 # Config
 SRC_DB = "ombudsman_decisions.db"
-DEST_DB = "ombudsman_insights.db"
+DEST_DB = "ombudsman_insights_v2.db"
 
 # Set standard output to UTF-8 to prevent console encoding exceptions
 sys.stdout.reconfigure(encoding='utf-8')
@@ -59,6 +59,13 @@ def init_dest_db(db_path):
             stage_1_days_est INTEGER,
             stage_2_days_est INTEGER,
             timescales_exceeded_est INTEGER,
+            is_upheld_est INTEGER DEFAULT 0,
+            apology_ordered_est INTEGER DEFAULT 0,
+            repairs_ordered_est INTEGER DEFAULT 0,
+            review_or_training_ordered_est INTEGER DEFAULT 0,
+            vulnerability_mentioned_est INTEGER DEFAULT 0,
+            communication_failure_est INTEGER DEFAULT 0,
+            record_keeping_failure_est INTEGER DEFAULT 0,
             full_text TEXT,
             FOREIGN KEY (landlord_id) REFERENCES landlords(id)
         )
@@ -72,6 +79,7 @@ def init_dest_db(db_path):
             description TEXT NOT NULL,
             determination TEXT NOT NULL,
             category TEXT NOT NULL,
+            is_upheld_est INTEGER DEFAULT 0,
             FOREIGN KEY (case_id) REFERENCES cases(case_id) ON DELETE CASCADE
         )
     """)
@@ -89,9 +97,11 @@ def init_dest_db(db_path):
     
     # Indices for speed and analytical query optimization
     cursor.execute("CREATE INDEX idx_cases_landlord ON cases(landlord_id)")
+    cursor.execute("CREATE INDEX idx_cases_upheld ON cases(is_upheld_est)")
     cursor.execute("CREATE INDEX idx_issues_case ON issues(case_id)")
     cursor.execute("CREATE INDEX idx_issues_category ON issues(category)")
     cursor.execute("CREATE INDEX idx_issues_determination ON issues(determination)")
+    cursor.execute("CREATE INDEX idx_issues_upheld ON issues(is_upheld_est)")
     cursor.execute("CREATE INDEX idx_comp_case ON compensation_orders(case_id)")
     
     conn.commit()
@@ -113,8 +123,10 @@ def parse_case_id(title, url):
     import hashlib
     return "pseudo_" + hashlib.md5(url.encode()).hexdigest()[:8]
 
+UPHELD_DETERMINATIONS = {'Severe Maladministration', 'Maladministration', 'Service Failure'}
+
 def parse_determinations(text):
-    """Heuristic extraction of determination outcomes and their descriptions."""
+    """Heuristic extraction of determination outcomes, descriptions, and upheld status."""
     clean_text = ' '.join(text.split())
     
     # Try finding standard determination block
@@ -151,7 +163,8 @@ def parse_determinations(text):
             # Clean up introductory prefixes like "We found: " or "a)"
             cleaned_sentence = re.sub(r'^(We found:|We have found:|\s*[a-z0-9\)\.\-\s]+)+', '', sentence, flags=re.IGNORECASE).strip()
             if cleaned_sentence:
-                results.append((cleaned_sentence, found_outcome))
+                is_upheld = 1 if found_outcome in UPHELD_DETERMINATIONS else 0
+                results.append((cleaned_sentence, found_outcome, is_upheld))
             
     return results
 
@@ -167,10 +180,74 @@ def classify_category(desc):
         return "Anti-Social Behaviour (ASB)"
     elif re.search(r'\b(complaint|handling|escalation|stages?|response)\b', desc_lower):
         return "Complaint Handling"
+    elif re.search(r'\b(infestation|pest|mice|rats|bugs|cockroaches|wasps|fleas)\b', desc_lower):
+        return "Pest Control"
+    elif re.search(r'\b(rent|service charge|billing|arrears|financial|compensation|costs)\b', desc_lower):
+        return "Rent & Service Charges"
+    elif re.search(r'\b(communal|estate management|garden|cleaning|refuse|bin|parking)\b', desc_lower):
+        return "Estate Management"
     elif re.search(r'\b(repair|maintenance|window|roof|boiler|heating|hot water|door|lift|gutter|structure)\b', desc_lower):
         return "Repairs & Maintenance"
     else:
         return "Other"
+
+def extract_indicators(text):
+    """Extracts operational context and vulnerability indicators from the full text."""
+    text_lower = text.lower()
+    
+    # 1. Vulnerability Keywords
+    vuln_keywords = [
+        r'\bvulnerab', r'\bdisab', r'\basthma', r'\bhealth', r'\bmedical', 
+        r'\belderly', r'\bwheelchair', r'\bbaby\b', r'\bchildren\b', 
+        r'\bmental health\b', r'\bautis', r'\bdepress'
+    ]
+    vuln = 1 if any(re.search(pat, text_lower) for pat in vuln_keywords) else 0
+    
+    # 2. Communication Failure
+    comm_keywords = [
+        r'\bpoor communication\b', r'\black of communication\b', 
+        r'\bfailed to communicate\b', r'\bfailures? in communication\b',
+        r'\bcommunication issues\b', r'\bcommunication failure\b',
+        r'\bfailed to respond to (queries|emails|letters|calls|requests)\b',
+        r'\bno response to (emails|letters|calls|requests)\b'
+    ]
+    comm = 1 if any(re.search(pat, text_lower) for pat in comm_keywords) else 0
+    
+    # 3. Record Keeping Failure
+    record_keywords = [
+        r'\bpoor record\b', r'\bpoor records\b', r'\bpoor record-keeping\b', 
+        r'\binadequate record\b', r'\binadequate records\b', r'\binadequate record-keeping\b',
+        r'\black of records\b', r'\black of record-keeping\b', 
+        r'\bfailed to keep (records|clear records|adequate records)\b',
+        r'\bfailures? in record-keeping\b', r'\brecord-keeping failure\b',
+        r'\bmissing records\b', r'\bmissing documentation\b',
+        r'\bpoor documentation\b', r'\bno records of\b'
+    ]
+    record = 1 if any(re.search(pat, text_lower) for pat in record_keywords) else 0
+    
+    return vuln, comm, record
+
+def extract_orders_remedies(text):
+    """Extracts remedy orders issued by the Ombudsman from the Orders section."""
+    clean_text = ' '.join(text.split())
+    
+    ord_match = re.search(r'\b(Orders|Putting things right)\b(.*?)(Recommendations|Discretion|Learning|$)', clean_text, re.IGNORECASE)
+    if not ord_match:
+        pos = clean_text.lower().rfind("orders")
+        if pos != -1:
+            section_text = clean_text[pos:]
+        else:
+            section_text = clean_text[-3000:]
+    else:
+        section_text = ord_match.group(2).strip()
+        
+    section_lower = section_text.lower()
+    
+    apology = 1 if re.search(r'\b(apologise|apology|apologize|apology order)\b', section_lower) else 0
+    repairs = 1 if re.search(r'\b(repair|remedial|works|inspect|survey|contractor|installation|fitting|clean|treatment|damp|specific action order|reconsider)\b', section_lower) else 0
+    policy_review = 1 if re.search(r'\b(review|training|train|staff training|retrain|re-train|policy review|procedure review|audit)\b', section_lower) else 0
+    
+    return apology, repairs, policy_review
 
 def extract_timescales(text):
     """Parses response timescales and standard compliance metrics from text."""
@@ -278,39 +355,61 @@ def compile_database():
         # 4. Compensation
         total_comp, comp_items = extract_compensation(full_text)
         
-        # 5. Insert Case
+        # 5. Extract Indicators and Remedies
+        vuln, comm, record = extract_indicators(full_text)
+        apology, repairs, review_train = extract_orders_remedies(full_text)
+        
+        # 6. Parse issues and determinations
+        findings = parse_determinations(full_text)
+        case_upheld = 0
+        issue_rows = []
+        for sentence, outcome, is_upheld in findings:
+            category = classify_category(sentence)
+            if is_upheld:
+                case_upheld = 1
+            issue_rows.append((sentence, outcome, category, is_upheld))
+            
+        # 7. Insert Case
         try:
             dest_cursor.execute("""
-                INSERT INTO cases (case_id, url, title, decision_date, landlord_id, total_compensation_ordered, stage_1_days_est, stage_2_days_est, timescales_exceeded_est, full_text)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO cases (
+                    case_id, url, title, decision_date, landlord_id, total_compensation_ordered, 
+                    stage_1_days_est, stage_2_days_est, timescales_exceeded_est, 
+                    is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
+                    vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est, full_text
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc, full_text
+                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc, 
+                case_upheld, apology, repairs, review_train, vuln, comm, record, full_text
             ))
             cases_inserted += 1
         except sqlite3.IntegrityError:
-            # Handle duplicate case IDs gracefully (e.g. if scraping overlapping ranges)
-            # Append hash suffix to keep unique
             import hashlib
             case_id = case_id + "_" + hashlib.md5(url.encode()).hexdigest()[:4]
             dest_cursor.execute("""
-                INSERT INTO cases (case_id, url, title, decision_date, landlord_id, total_compensation_ordered, stage_1_days_est, stage_2_days_est, timescales_exceeded_est, full_text)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO cases (
+                    case_id, url, title, decision_date, landlord_id, total_compensation_ordered, 
+                    stage_1_days_est, stage_2_days_est, timescales_exceeded_est, 
+                    is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
+                    vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est, full_text
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc, full_text
+                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc, 
+                case_upheld, apology, repairs, review_train, vuln, comm, record, full_text
             ))
             cases_inserted += 1
             
-        # 6. Parse and Insert Issues (Determinations)
-        findings = parse_determinations(full_text)
-        for sentence, outcome in findings:
-            category = classify_category(sentence)
+        # 8. Insert Issues
+        for sentence, outcome, category, is_upheld in issue_rows:
             dest_cursor.execute("""
-                INSERT INTO issues (case_id, description, determination, category)
-                VALUES (?, ?, ?, ?)
-            """, (case_id, sentence, outcome, category))
+                INSERT INTO issues (case_id, description, determination, category, is_upheld_est)
+                VALUES (?, ?, ?, ?, ?)
+            """, (case_id, sentence, outcome, category, is_upheld))
             issues_inserted += 1
             
-        # 7. Insert Compensation Details
+        # 9. Insert Compensation Details
         for amount, desc in comp_items:
             dest_cursor.execute("""
                 INSERT INTO compensation_orders (case_id, amount, description)

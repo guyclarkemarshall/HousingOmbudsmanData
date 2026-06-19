@@ -54,6 +54,13 @@ erDiagram
         int stage_1_days_est
         int stage_2_days_est
         int timescales_exceeded_est
+        int is_upheld_est
+        int apology_ordered_est
+        int repairs_ordered_est
+        int review_or_training_ordered_est
+        int vulnerability_mentioned_est
+        int communication_failure_est
+        int record_keeping_failure_est
         string full_text
     }
 
@@ -63,6 +70,7 @@ erDiagram
         string description
         string determination
         string category
+        int is_upheld_est
     }
 
     compensation_orders {
@@ -79,7 +87,7 @@ Lookup table containing unique names of the social landlords/local authorities i
 * `name` (TEXT, UNIQUE): Cleaned landlord name.
 
 #### 2. `cases`
-The main case record table.
+The main case record table containing overall complaint characteristics and outcomes:
 * `case_id` (TEXT, PK): Unique Ombudsman case number (e.g. `202113360`).
 * `url` (TEXT): Source decision page URL.
 * `title` (TEXT): Full case title header.
@@ -88,14 +96,22 @@ The main case record table.
 * `total_compensation_ordered` (REAL): Sum of all financial compensation orders within the case.
 * `stage_1_days_est` / `stage_2_days_est` (INTEGER): Estimated days taken by the landlord to resolve the complaint at Stage 1 / Stage 2 of their internal process.
 * `timescales_exceeded_est` (INTEGER): Binary indicator (1 = exceeded, 0 = within standards, NULL = unknown) based on compliance language in the text.
+* `is_upheld_est` (INTEGER): `1` (True) if the landlord was found responsible for maladministration, severe maladministration, or service failure in any of the case's issues; `0` otherwise.
+* `apology_ordered_est` (INTEGER): `1` if the landlord was ordered by the Ombudsman to apologize in writing to the resident; `0` otherwise.
+* `repairs_ordered_est` (INTEGER): `1` if the landlord was ordered to complete repairs, damp surveys, or works; `0` otherwise.
+* `review_or_training_ordered_est` (INTEGER): `1` if the landlord was ordered to review its policies, procedures, or undergo staff training; `0` otherwise.
+* `vulnerability_mentioned_est` (INTEGER): `1` if resident vulnerability factors (health, disability, mental health, age, children) were noted in the text; `0` otherwise.
+* `communication_failure_est` (INTEGER): `1` if the case notes poor communication, failure to update, or ignoring the tenant; `0` otherwise.
+* `record_keeping_failure_est` (INTEGER): `1` if the case notes poor record-keeping, missing files, or inadequate documentation; `0` otherwise.
 * `full_text` (TEXT): Full text of the raw Ombudsman decision report.
 
 #### 3. `issues`
-Granular issue-level determinations parsed from the Ombudsman's decision text.
+Granular issue-level determinations parsed from the Ombudsman's decision text:
 * `case_id` (TEXT, FK): Reference to `cases(case_id)`.
 * `description` (TEXT): Context sentence containing the issue and determination.
 * `determination` (TEXT): Standardized outcome (`Severe Maladministration`, `Maladministration`, `Service Failure`, `Reasonable Redress`, `No Maladministration`, `Outside Jurisdiction`).
-* `category` (TEXT): Classified dispute category (`Damp & Mould`, `Leaks & Water Ingress`, `Anti-Social Behaviour (ASB)`, `Complaint Handling`, `Repairs & Maintenance`, `Other`).
+* `category` (TEXT): Classified dispute category (`Damp & Mould`, `Leaks & Water Ingress`, `Anti-Social Behaviour (ASB)`, `Complaint Handling`, `Pest Control`, `Rent & Service Charges`, `Estate Management`, `Repairs & Maintenance`, `Other`).
+* `is_upheld_est` (INTEGER): `1` if the specific issue is upheld (Maladministration, Severe Maladministration, Service Failure); `0` otherwise.
 
 #### 4. `compensation_orders`
 Individual financial awards ordered by the Ombudsman.
@@ -107,31 +123,43 @@ Individual financial awards ordered by the Ombudsman.
 
 ## Dataset Insights & Statistics
 
-Running the validation check on `ombudsman_insights.db` yields the following high-level summaries:
+Running the validation check on `ombudsman_insights.db` yields the following summaries:
 
 * **Record Counts**:
   * Landlords: 723
   * Cases: 16,611
   * Issue-level Determinations: 40,896
   * Compensation Orders: 30,755
-* **Issue Categories**:
-  * Complaint Handling: 61.2%
-  * Damp & Mould: 6.5%
-  * Anti-Social Behaviour (ASB): 5.7%
-  * Leaks & Water Ingress: 4.9%
-  * Repairs & Maintenance: 1.0%
-  * Other: 20.8%
-* **Determinations**:
-  * Maladministration: 31.7%
-  * Service Failure: 26.9%
-  * Reasonable Redress: 24.1%
-  * No Maladministration: 14.7%
-  * Severe Maladministration: 2.3%
-  * Outside Jurisdiction: 0.4%
+
+* **Complaint Upheld Rates**:
+  * **Overall Upheld Cases**: **71.6%** (11,896 out of 16,611 cases had at least one finding of failure against the landlord).
+  * **Overall Upheld Issues**: **60.9%** (24,897 out of 40,896 issue determinations upheld).
+  * **Upheld Rate by Dispute Category**:
+    * Damp & Mould: **77.2%** (2,038 / 2,639)
+    * Leaks & Water Ingress: **67.7%** (1,360 / 2,010)
+    * Complaint Handling: **60.7%** (15,191 / 25,008)
+    * Pest Control: **59.5%** (22 / 37)
+    * Anti-Social Behaviour (ASB): **56.9%** (1,322 / 2,325)
+    * Repairs & Maintenance: **55.9%** (179 / 320)
+    * Rent & Service Charges: **52.5%** (1,020 / 1,944)
+    * Estate Management: **44.8%** (91 / 203)
+    * Other: **57.3%** (3,674 / 6,410)
+
+* **Ombudsman Remedies & Orders (Case Level)**:
+  * **Repairs/Works Ordered**: **42.2%** (7,002 cases)
+  * **Apologies Ordered**: **23.7%** (3,941 cases)
+  * **Policy/Training Reviews Ordered**: **22.3%** (3,702 cases)
+
+* **Operational Failures & Context (Case Level)**:
+  * **Vulnerability Mentioned**: **73.9%** (12,280 cases)
+  * **Communication Failures**: **36.1%** (5,997 cases)
+  * **Record Keeping Failures**: **13.1%** (2,174 cases)
+
 * **Complaint Timescales & Standards**:
   * Average Stage 1 Response Time: **13.3 working days** (compliant standard under the Complaint Handling Code is 10 working days).
   * Average Stage 2 Response Time: **22.4 working days** (compliant standard is 20 working days).
   * Exceeded standards rate: **40.6%** of cases with classified timescale compliance language.
+
 * **Financial Compensation**:
   * Total Compensation Ordered: **£14,090,950.00**
   * Cases with Ordered Compensation: **49.4%**

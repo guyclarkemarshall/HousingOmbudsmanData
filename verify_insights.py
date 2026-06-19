@@ -9,7 +9,7 @@ import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-DB_NAME = "ombudsman_insights.db"
+DB_NAME = "ombudsman_insights_v2.db"
 
 def verify_insights_db():
     print(f"Connecting to database: {DB_NAME}\n")
@@ -55,8 +55,52 @@ def verify_insights_db():
     """)
     for determination, cnt, pct in cursor.fetchall():
         print(f"  - {determination:<25}: {cnt:>5} ({pct:>5.1f}%)")
+
+    # 3. Upheld Rates
+    print("\n=== COMPLAINT UPHELD RATES ===")
+    cursor.execute("SELECT COUNT(*) FROM cases WHERE is_upheld_est = 1")
+    upheld_cases = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM issues WHERE is_upheld_est = 1")
+    upheld_issues = cursor.fetchone()[0]
+    print(f"Overall Upheld Cases     : {upheld_cases:>5} / {cases_count:<5} ({upheld_cases * 100.0 / cases_count:.1f}%)")
+    print(f"Overall Upheld Issues    : {upheld_issues:>5} / {issues_count:<5} ({upheld_issues * 100.0 / issues_count:.1f}%)")
+    
+    print("\n--- Upheld Rate by Category ---")
+    cursor.execute("""
+        SELECT category, COUNT(*) as total, SUM(is_upheld_est) as upheld,
+               (SUM(is_upheld_est) * 100.0 / COUNT(*)) as rate
+        FROM issues
+        GROUP BY category
+        ORDER BY rate DESC
+    """)
+    for cat, tot, uph, rate in cursor.fetchall():
+        print(f"  - {cat:<30}: {rate:>5.1f}% ({uph}/{tot})")
         
-    # 3. Timescale performance metrics
+    # 4. Ombudsman Remedies & Orders
+    print("\n=== OMBUDSMAN REMEDIES & ORDERS (CASE LEVEL) ===")
+    cursor.execute("SELECT SUM(apology_ordered_est) FROM cases")
+    apologies = cursor.fetchone()[0] or 0
+    cursor.execute("SELECT SUM(repairs_ordered_est) FROM cases")
+    repairs = cursor.fetchone()[0] or 0
+    cursor.execute("SELECT SUM(review_or_training_ordered_est) FROM cases")
+    reviews = cursor.fetchone()[0] or 0
+    print(f"  - Apologies Ordered        : {apologies:>5} ({apologies * 100.0 / cases_count:.1f}%)")
+    print(f"  - Repairs/Works Ordered    : {repairs:>5} ({repairs * 100.0 / cases_count:.1f}%)")
+    print(f"  - Policy/Training Reviews  : {reviews:>5} ({reviews * 100.0 / cases_count:.1f}%)")
+
+    # 5. Operational Heuristics & Context
+    print("\n=== OPERATIONAL CONTEXT FLAGS (CASE LEVEL) ===")
+    cursor.execute("SELECT SUM(vulnerability_mentioned_est) FROM cases")
+    vuln = cursor.fetchone()[0] or 0
+    cursor.execute("SELECT SUM(communication_failure_est) FROM cases")
+    comm = cursor.fetchone()[0] or 0
+    cursor.execute("SELECT SUM(record_keeping_failure_est) FROM cases")
+    rec = cursor.fetchone()[0] or 0
+    print(f"  - Vulnerability Mentioned  : {vuln:>5} ({vuln * 100.0 / cases_count:.1f}%)")
+    print(f"  - Communication Failures   : {comm:>5} ({comm * 100.0 / cases_count:.1f}%)")
+    print(f"  - Record Keeping Failures  : {rec:>5} ({rec * 100.0 / cases_count:.1f}%)")
+
+    # 6. Timescale performance metrics
     print("\n=== COMPLAINT TIMESCALE STATS ===")
     cursor.execute("SELECT COUNT(*) FROM cases WHERE stage_1_days_est IS NOT NULL OR stage_2_days_est IS NOT NULL")
     cases_with_timescale = cursor.fetchone()[0]
@@ -79,7 +123,7 @@ def verify_insights_db():
     if exceeded_known > 0:
         print(f"Exceeded standards rate  : {exceeded_count} out of {exceeded_known} classified ({exceeded_count * 100.0 / exceeded_known:.1f}%)")
         
-    # 4. Financial compensation metrics
+    # 7. Financial compensation metrics
     print("\n=== FINANCIAL ORDERS STATS ===")
     cursor.execute("SELECT SUM(amount) FROM compensation_orders")
     total_comp = cursor.fetchone()[0] or 0.0
@@ -107,14 +151,14 @@ def verify_insights_db():
         print(f"  - Case    : '{max_comp_row[0]}'")
         print(f"  - Landlord: '{max_comp_row[2]}'")
         
-    # 5. Top 5 landlords with highest maladministration count
+    # 8. Top 5 landlords with highest maladministration count
     print("\n=== TOP 5 LANDLORDS BY MALADMINISTRATION ISSUE COUNT ===")
     cursor.execute("""
         SELECT landlords.name, COUNT(*) as cnt
         FROM issues
         JOIN cases ON issues.case_id = cases.case_id
         JOIN landlords ON cases.landlord_id = landlords.id
-        WHERE issues.determination IN ('Maladministration', 'Severe Maladministration', 'Service Failure')
+        WHERE issues.is_upheld_est = 1
         GROUP BY landlords.name
         ORDER BY cnt DESC
         LIMIT 5
