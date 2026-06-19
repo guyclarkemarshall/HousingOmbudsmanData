@@ -1,0 +1,5 @@
+ombudsman_decisions.db
+__pycache__/
+.idea/
+.vscode/
+*.pyc
