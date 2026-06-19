@@ -9,7 +9,7 @@ import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-DB_NAME = "ombudsman_insights_v2.db"
+DB_NAME = "ombudsman_insights.db"
 
 def verify_insights_db():
     print(f"Connecting to database: {DB_NAME}\n")

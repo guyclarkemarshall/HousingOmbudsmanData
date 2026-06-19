@@ -11,7 +11,7 @@ import sqlite3
 
 # Config
 SRC_DB = "ombudsman_decisions.db"
-DEST_DB = "ombudsman_insights_v2.db"
+DEST_DB = "ombudsman_insights.db"
 
 # Set standard output to UTF-8 to prevent console encoding exceptions
 sys.stdout.reconfigure(encoding='utf-8')
