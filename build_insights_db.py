@@ -184,25 +184,28 @@ def parse_determinations(text):
     return results
 
 def classify_category(desc):
-    """Classifies dispute descriptions into discrete standard categories."""
+    """Classifies dispute descriptions into discrete standard categories.
+    Ordered most-specific first so 'Complaint Handling' only fires as residual."""
     desc_lower = desc.lower()
-    
+
     if re.search(r'\b(damp|mould|condensation)\b', desc_lower):
         return "Damp & Mould"
+    elif re.search(r'\b(infestation|pest|mice|rats|bugs|cockroaches|wasps|fleas)\b', desc_lower):
+        return "Pest Control"
     elif re.search(r'\b(leak|water|flood|burst|ingress|piping)\b', desc_lower):
         return "Leaks & Water Ingress"
     elif re.search(r'\b(noise|antisocial|asb|anti-social|harassment|nuisance)\b', desc_lower):
         return "Anti-Social Behaviour (ASB)"
-    elif re.search(r'\b(complaint|handling|escalation|stages?|response)\b', desc_lower):
-        return "Complaint Handling"
-    elif re.search(r'\b(infestation|pest|mice|rats|bugs|cockroaches|wasps|fleas)\b', desc_lower):
-        return "Pest Control"
-    elif re.search(r'\b(rent|service charge|billing|arrears|financial|compensation|costs)\b', desc_lower):
+    elif re.search(r'\b(rent|service charge|billing|arrears)\b', desc_lower):
         return "Rent & Service Charges"
     elif re.search(r'\b(communal|estate management|garden|cleaning|refuse|bin|parking)\b', desc_lower):
         return "Estate Management"
     elif re.search(r'\b(repair|maintenance|window|roof|boiler|heating|hot water|door|lift|gutter|structure)\b', desc_lower):
         return "Repairs & Maintenance"
+    elif re.search(r'\b(rehousing|allocation|transfer|decant|homeless|lettings|bidding|housing register)\b', desc_lower):
+        return "Rehousing & Allocations"
+    elif re.search(r'\b(complaint|handling|escalation|stages?|response)\b', desc_lower):
+        return "Complaint Handling"
     else:
         return "Other"
 
