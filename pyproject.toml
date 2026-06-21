@@ -1,0 +1,18 @@
+[project]
+name = "housing-ombudsman-data"
+version = "0.1.0"
+description = "UK Housing Ombudsman decisions dataset scraper and insights compiler"
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "requests>=2.34.2",
+]
+
+[tool.setuptools]
+py-modules = ["scraper", "build_insights_db", "verify_db", "verify_insights"]
+
+[project.scripts]
+scrape = "scraper:main"
+build-insights = "build_insights_db:main"
+verify-decisions = "verify_db:main"
+verify-insights = "verify_insights:main"

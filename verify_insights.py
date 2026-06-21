@@ -168,5 +168,8 @@ def verify_insights_db():
         
     conn.close()
 
-if __name__ == "__main__":
+def main():
     verify_insights_db()
+
+if __name__ == "__main__":
+    main()
