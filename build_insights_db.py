@@ -66,6 +66,9 @@ def init_dest_db(db_path):
             vulnerability_mentioned_est INTEGER DEFAULT 0,
             communication_failure_est INTEGER DEFAULT 0,
             record_keeping_failure_est INTEGER DEFAULT 0,
+            doc_format TEXT,
+            landlord_type TEXT,
+            tenancy_type TEXT,
             full_text TEXT,
             FOREIGN KEY (landlord_id) REFERENCES landlords(id)
         )
@@ -94,7 +97,17 @@ def init_dest_db(db_path):
             FOREIGN KEY (case_id) REFERENCES cases(case_id) ON DELETE CASCADE
         )
     """)
-    
+
+    # 5. Legal Citations Table
+    cursor.execute("""
+        CREATE TABLE legal_citations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            case_id TEXT NOT NULL,
+            statute TEXT NOT NULL,
+            FOREIGN KEY (case_id) REFERENCES cases(case_id) ON DELETE CASCADE
+        )
+    """)
+
     # Indices for speed and analytical query optimization
     cursor.execute("CREATE INDEX idx_cases_landlord ON cases(landlord_id)")
     cursor.execute("CREATE INDEX idx_cases_upheld ON cases(is_upheld_est)")
@@ -103,6 +116,8 @@ def init_dest_db(db_path):
     cursor.execute("CREATE INDEX idx_issues_determination ON issues(determination)")
     cursor.execute("CREATE INDEX idx_issues_upheld ON issues(is_upheld_est)")
     cursor.execute("CREATE INDEX idx_comp_case ON compensation_orders(case_id)")
+    cursor.execute("CREATE INDEX idx_citations_case ON legal_citations(case_id)")
+    cursor.execute("CREATE INDEX idx_citations_statute ON legal_citations(statute)")
     
     conn.commit()
     conn.close()
