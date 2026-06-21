@@ -10,9 +10,6 @@ import re
 # New-format docs (Nov 2025+) start with this metadata block
 _NEW_FORMAT_MARKER = re.compile(r'^Decision\s*\nCase ID', re.MULTILINE)
 
-# Old-format docs start with REPORT heading
-_OLD_FORMAT_MARKER = re.compile(r'\bREPORT\b')
-
 OLD_SECTION_RE = re.compile(
     r'^('
     r'Background(?: and summary of events)?'
