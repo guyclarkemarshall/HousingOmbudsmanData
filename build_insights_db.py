@@ -320,6 +320,53 @@ def extract_compensation(text):
                 
     return total_amount, items
 
+def extract_landlord_type(sections: dict) -> str | None:
+    """Extracts landlord type from the document preamble/header metadata block."""
+    preamble = sections.get('preamble', '')
+    m = re.search(r'Landlord type\s*\n(.+)', preamble)
+    if m:
+        return m.group(1).strip()
+    # Fallback: search first 500 chars of full doc for old-format docs without preamble key
+    full = sections.get('full_doc', '')
+    m = re.search(r'Landlord type\s*\n(.+)', full[:500])
+    return m.group(1).strip() if m else None
+
+
+def extract_tenancy_type(sections: dict) -> str | None:
+    """Extracts tenancy/occupancy type from the document preamble/header metadata block."""
+    preamble = sections.get('preamble', '')
+    m = re.search(r'Occupancy\s*\n(.+)', preamble)
+    if m:
+        return m.group(1).strip()
+    full = sections.get('full_doc', '')
+    m = re.search(r'Occupancy\s*\n(.+)', full[:500])
+    return m.group(1).strip() if m else None
+
+
+STATUTES = [
+    "Housing Act 1996",
+    "Homes (Fitness for Human Habitation) Act 2018",
+    "Awaab's Law",
+    "Landlord and Tenant Act 1985",
+    "Equality Act 2010",
+    "Decent Homes Standard",
+    "Housing Ombudsman Scheme",
+    "Human Rights Act",
+    "Care Act 2014",
+    "Localism Act 2011",
+    "Housing Health and Safety Rating System",
+    "HHSRS",
+]
+
+# Precompile once at module load — avoids recompiling for every one of 16,611 docs
+_STATUTE_PATTERNS = [(s, re.compile(re.escape(s), re.IGNORECASE)) for s in STATUTES]
+
+
+def extract_legal_citations(full_text: str) -> list:
+    """Returns deduplicated list of statute names cited anywhere in the decision text."""
+    return [statute for statute, pattern in _STATUTE_PATTERNS if pattern.search(full_text)]
+
+
 def compile_database():
     """Reads cases, parses insights, and saves relational structured entries."""
     if not os.path.exists(SRC_DB):
