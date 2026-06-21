@@ -9,6 +9,8 @@ import re
 import sys
 import sqlite3
 
+from section_splitter import detect_format, split_sections, extract_complaint_finding_pairs
+
 # Config
 SRC_DB = "ombudsman_decisions.db"
 DEST_DB = "ombudsman_insights.db"
@@ -430,6 +432,9 @@ def compile_database():
         # 2. Extract Case ID & clean Date
         case_id = parse_case_id(title, url)
         
+        # 2b. Detect document format (new Investigation format vs old REPORT format)
+        doc_format = detect_format(full_text)
+
         # 3. Timescales
         s1, s2, exc = extract_timescales(full_text)
         
@@ -441,7 +446,24 @@ def compile_database():
         apology, repairs, review_train = extract_orders_remedies(full_text)
         
         # 6. Parse issues and determinations
-        findings = parse_determinations(full_text)
+        findings_primary = parse_determinations(full_text)
+
+        # For new-format docs, also extract from structured Complaint/Finding pairs
+        findings_secondary = []
+        if doc_format == 'new':
+            for pair in extract_complaint_finding_pairs(full_text):
+                outcome = pair['outcome']
+                is_upheld = 1 if outcome in UPHELD_DETERMINATIONS else 0
+                findings_secondary.append((pair['complaint'], outcome, is_upheld))
+
+        # Merge: add secondary findings not already captured by primary (dedupe by prefix)
+        seen_prefixes = {f[0][:60].lower() for f in findings_primary}
+        findings = list(findings_primary)
+        for desc, det, upheld in findings_secondary:
+            if desc[:60].lower() not in seen_prefixes:
+                findings.append((desc, det, upheld))
+                seen_prefixes.add(desc[:60].lower())
+
         case_upheld = 0
         issue_rows = []
         for sentence, outcome, is_upheld in findings:
