@@ -290,37 +290,53 @@ def extract_timescales(text):
         
     return stage1_days, stage2_days, exceeded
 
-def extract_compensation(text):
-    """Extracts ordered compensation values and descriptions from the Orders section."""
-    clean_text = ' '.join(text.split())
-    
-    ord_match = re.search(r'\b(Orders|Putting things right)\b(.*?)(Recommendations|Discretion|$)', clean_text, re.IGNORECASE)
-    if not ord_match:
-        pos = clean_text.lower().rfind("orders")
-        if pos != -1:
-            section_text = clean_text[pos:]
-        else:
-            section_text = clean_text[-3000:]
+def extract_compensation(sections_or_text) -> tuple:
+    """Extracts ordered compensation amounts from the Orders/Putting things right section.
+
+    Accepts either:
+    - A dict (new interface): uses pre-split sections from section_splitter.split_sections()
+    - A string (old interface): treats string as full_doc fallback (for backward compatibility)
+
+    Returns: (total_amount, [(amount, description), ...])
+    """
+    # Handle both dict and string inputs for backward compatibility
+    if isinstance(sections_or_text, str):
+        sections = {'full_doc': sections_or_text}
     else:
-        section_text = ord_match.group(2).strip()
-        
-    sentences = re.split(r'\.\s*(?=[A-Z])', section_text)
+        sections = sections_or_text
+
+    # Prefer the authoritative orders section; fall back to full text
+    orders_text = (
+        sections.get('orders_and_recommendations')
+        or sections.get('orders_1')
+        or sections.get('orders')
+        or sections.get('putting_things_right_1')
+        or sections.get('putting_things_right')
+        or sections.get('full_doc', '')
+    )
+
+    clean_text = ' '.join(orders_text.split())
+    sentences = re.split(r'\.\s*(?=[A-Z])', clean_text)
+
     total_amount = 0.0
     items = []
-    
+
     for sentence in sentences:
         matches = re.findall(r'£([0-9,]+)', sentence)
         for m in matches:
             val_str = m.replace(',', '')
             try:
                 val = float(val_str)
-                # Bounds check to avoid mapping claims or rents
-                if 20.0 <= val <= 10000.0:
-                    total_amount += val
-                    items.append((val, sentence.strip()[:250]))
+                if val < 5.0:
+                    continue
+                # Skip very large values that reference claim amounts rather than orders
+                if val > 50000.0 and 'claim' in sentence.lower():
+                    continue
+                total_amount += val
+                items.append((val, sentence.strip()[:250]))
             except ValueError:
                 pass
-                
+
     return total_amount, items
 
 def extract_landlord_type(sections: dict) -> str | None:
