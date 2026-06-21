@@ -11,9 +11,9 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 DB_NAME = "ombudsman_insights.db"
 
-def verify_insights_db():
-    print(f"Connecting to database: {DB_NAME}\n")
-    conn = sqlite3.connect(DB_NAME)
+def verify_insights_db(db_path=DB_NAME):
+    print(f"Connecting to database: {db_path}\n")
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     # 1. Row counts
@@ -165,7 +165,58 @@ def verify_insights_db():
     """)
     for idx, (name, cnt) in enumerate(cursor.fetchall(), 1):
         print(f"  {idx}. {name:<40}: {cnt} issues found failing")
-        
+
+    # 9. Document format distribution
+    print("\n=== DOCUMENT FORMAT DISTRIBUTION ===")
+    cursor.execute("""
+        SELECT doc_format, COUNT(*) as cnt,
+               (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM cases)) as pct
+        FROM cases
+        GROUP BY doc_format ORDER BY cnt DESC
+    """)
+    for fmt, cnt, pct in cursor.fetchall():
+        label = fmt if fmt else 'NULL (unknown)'
+        print(f"  - {label:<10}: {cnt:>5} ({pct:>5.1f}%)")
+
+    # 10. Landlord and tenancy type distributions
+    print("\n=== LANDLORD TYPE DISTRIBUTION ===")
+    cursor.execute("""
+        SELECT landlord_type, COUNT(*) as cnt
+        FROM cases WHERE landlord_type IS NOT NULL
+        GROUP BY landlord_type ORDER BY cnt DESC LIMIT 10
+    """)
+    for ltype, cnt in cursor.fetchall():
+        print(f"  - {ltype:<40}: {cnt:>5}")
+    cursor.execute("SELECT COUNT(*) FROM cases WHERE landlord_type IS NULL")
+    null_lt = cursor.fetchone()[0]
+    print(f"  - NULL (not extracted)              : {null_lt:>5}")
+
+    print("\n=== TENANCY TYPE DISTRIBUTION ===")
+    cursor.execute("""
+        SELECT tenancy_type, COUNT(*) as cnt
+        FROM cases WHERE tenancy_type IS NOT NULL
+        GROUP BY tenancy_type ORDER BY cnt DESC LIMIT 10
+    """)
+    for ttype, cnt in cursor.fetchall():
+        print(f"  - {ttype:<40}: {cnt:>5}")
+    cursor.execute("SELECT COUNT(*) FROM cases WHERE tenancy_type IS NULL")
+    null_tt = cursor.fetchone()[0]
+    print(f"  - NULL (not extracted)              : {null_tt:>5}")
+
+    # 11. Legal citations
+    print("\n=== LEGAL CITATIONS (TOP 15) ===")
+    cursor.execute("SELECT COUNT(*) FROM legal_citations")
+    total_cit = cursor.fetchone()[0]
+    print(f"Total citation records: {total_cit}")
+    cursor.execute("""
+        SELECT statute, COUNT(*) as cnt,
+               (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM cases)) as pct_cases
+        FROM legal_citations
+        GROUP BY statute ORDER BY cnt DESC LIMIT 15
+    """)
+    for statute, cnt, pct in cursor.fetchall():
+        print(f"  - {statute:<55}: {cnt:>5} ({pct:>5.1f}% of cases)")
+
     conn.close()
 
 def main():
