@@ -415,6 +415,7 @@ def compile_database():
     cases_inserted = 0
     issues_inserted = 0
     compensation_inserted = 0
+    citations_inserted = 0
     
     for idx, row in enumerate(rows, 1):
         url, title, date_str, landlord_name, full_text = row
@@ -432,18 +433,24 @@ def compile_database():
         # 2. Extract Case ID & clean Date
         case_id = parse_case_id(title, url)
         
-        # 2b. Detect document format (new Investigation format vs old REPORT format)
+        # 2b. Detect document format and split sections (used by all downstream extractors)
         doc_format = detect_format(full_text)
+        sections = split_sections(full_text)
 
         # 3. Timescales
         s1, s2, exc = extract_timescales(full_text)
-        
-        # 4. Compensation
-        total_comp, comp_items = extract_compensation(full_text)
-        
+
+        # 4. Compensation (uses sections to target orders section)
+        total_comp, comp_items = extract_compensation(sections)
+
         # 5. Extract Indicators and Remedies
         vuln, comm, record = extract_indicators(full_text)
         apology, repairs, review_train = extract_orders_remedies(full_text)
+
+        # 5b. New field extractions
+        landlord_type = extract_landlord_type(sections)
+        tenancy_type = extract_tenancy_type(sections)
+        cited_statutes = extract_legal_citations(full_text)
         
         # 6. Parse issues and determinations
         findings_primary = parse_determinations(full_text)
@@ -476,15 +483,17 @@ def compile_database():
         try:
             dest_cursor.execute("""
                 INSERT INTO cases (
-                    case_id, url, title, decision_date, landlord_id, total_compensation_ordered, 
-                    stage_1_days_est, stage_2_days_est, timescales_exceeded_est, 
+                    case_id, url, title, decision_date, landlord_id, total_compensation_ordered,
+                    stage_1_days_est, stage_2_days_est, timescales_exceeded_est,
                     is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
-                    vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est, full_text
+                    vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est,
+                    doc_format, landlord_type, tenancy_type, full_text
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc, 
-                case_upheld, apology, repairs, review_train, vuln, comm, record, full_text
+                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc,
+                case_upheld, apology, repairs, review_train, vuln, comm, record,
+                doc_format, landlord_type, tenancy_type, full_text
             ))
             cases_inserted += 1
         except sqlite3.IntegrityError:
@@ -492,15 +501,17 @@ def compile_database():
             case_id = case_id + "_" + hashlib.md5(url.encode()).hexdigest()[:4]
             dest_cursor.execute("""
                 INSERT INTO cases (
-                    case_id, url, title, decision_date, landlord_id, total_compensation_ordered, 
-                    stage_1_days_est, stage_2_days_est, timescales_exceeded_est, 
+                    case_id, url, title, decision_date, landlord_id, total_compensation_ordered,
+                    stage_1_days_est, stage_2_days_est, timescales_exceeded_est,
                     is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
-                    vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est, full_text
+                    vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est,
+                    doc_format, landlord_type, tenancy_type, full_text
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc, 
-                case_upheld, apology, repairs, review_train, vuln, comm, record, full_text
+                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc,
+                case_upheld, apology, repairs, review_train, vuln, comm, record,
+                doc_format, landlord_type, tenancy_type, full_text
             ))
             cases_inserted += 1
             
@@ -519,7 +530,15 @@ def compile_database():
                 VALUES (?, ?, ?)
             """, (case_id, amount, desc))
             compensation_inserted += 1
-            
+
+        # 10. Insert Legal Citations
+        for statute in cited_statutes:
+            dest_cursor.execute("""
+                INSERT INTO legal_citations (case_id, statute)
+                VALUES (?, ?)
+            """, (case_id, statute))
+            citations_inserted += 1
+
         # Periodically commit and log progress
         if idx % 1000 == 0 or idx == total_cases:
             dest_conn.commit()
@@ -535,6 +554,7 @@ def compile_database():
     print(f"  - Cases: {cases_inserted}")
     print(f"  - Issues: {issues_inserted}")
     print(f"  - Compensation Orders: {compensation_inserted}")
+    print(f"  - Legal Citations: {citations_inserted}")
 
 def main():
     compile_database()
