@@ -146,17 +146,21 @@ def parse_determinations(text):
     """Heuristic extraction of determination outcomes, descriptions, and upheld status."""
     clean_text = ' '.join(text.split())
     
-    # Try finding standard determination block
+    # Try finding standard determination block.
+    # Old-format docs use "Determination (decision)", "Determination", or "Our decision".
+    # New-format docs use "Our decision (determination)".
     det_match = re.search(
-        r'(Our decision \(determination\)|Our decision|We found:|We found the landlord responsible for:)(.*?)(Summary of reasons|Orders and recommendations|Orders|Putting things right|$)', 
-        clean_text, 
+        r'(Our decision \(determination\)|Determination \(decision\)|Determination|Our decision|We found:|We found the landlord responsible for:)(.*?)(Summary of reasons|Orders and recommendations|Orders|Putting things right|$)',
+        clean_text,
         re.IGNORECASE
     )
     if not det_match:
-        # Fallback: scan the end of the text
-        pos = clean_text.lower().rfind("our decision")
-        if pos != -1:
-            section_text = clean_text[pos:pos+2500]
+        # Fallback: scan from last occurrence of any heading variant
+        for heading in ('determination', 'our decision'):
+            pos = clean_text.lower().rfind(heading)
+            if pos != -1:
+                section_text = clean_text[pos:pos+2500]
+                break
         else:
             section_text = clean_text[-3000:]
     else:
@@ -177,8 +181,10 @@ def parse_determinations(text):
                 break
                 
         if found_outcome:
-            # Clean up introductory prefixes like "We found: " or "a)"
-            cleaned_sentence = re.sub(r'^(We found:|We have found:|\s*[a-z0-9\)\.\-\s]+)+', '', sentence, flags=re.IGNORECASE).strip()
+            # Strip only known list prefixes ("We found:", "We have found:", "a) ", "1. ")
+            # Do NOT use re.IGNORECASE here — the character class [a-z...] would then match
+            # all text including uppercase sentence content, wiping out the whole string.
+            cleaned_sentence = re.sub(r'^(We found:|We have found:|\s*[a-z0-9][)\.\-]\s*)+', '', sentence).strip()
             if cleaned_sentence:
                 is_upheld = 1 if found_outcome in UPHELD_DETERMINATIONS else 0
                 results.append((cleaned_sentence, found_outcome, is_upheld))
@@ -307,15 +313,21 @@ def extract_compensation(sections_or_text) -> tuple:
     else:
         sections = sections_or_text
 
-    # Prefer the authoritative orders section; fall back to full text
+    # Prefer the authoritative orders section; fall back to full text.
+    # For new-format docs the ordered amount is often inside finding_N sections,
+    # so collect those too and append them to whatever orders text we find.
     orders_text = (
         sections.get('orders_and_recommendations')
         or sections.get('orders_1')
         or sections.get('orders')
         or sections.get('putting_things_right_1')
         or sections.get('putting_things_right')
-        or sections.get('full_doc', '')
+        or ''
     )
+    # Append finding_N content — new-format docs embed compensation amounts there
+    finding_keys = sorted(k for k in sections if k.startswith('finding_'))
+    finding_text = ' '.join(sections[k] for k in finding_keys)
+    orders_text = (orders_text + ' ' + finding_text).strip() or sections.get('full_doc', '')
 
     clean_text = ' '.join(orders_text.split())
     sentences = re.split(r'\.\s*(?=[A-Z])', clean_text)
