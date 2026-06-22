@@ -433,5 +433,8 @@ def compile_database():
     print(f"  - Issues: {issues_inserted}")
     print(f"  - Compensation Orders: {compensation_inserted}")
 
-if __name__ == "__main__":
+def main():
     compile_database()
+
+if __name__ == "__main__":
+    main()

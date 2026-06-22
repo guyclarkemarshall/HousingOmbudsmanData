@@ -78,5 +78,8 @@ def verify_database():
     
     conn.close()
 
-if __name__ == "__main__":
+def main():
     verify_database()
+
+if __name__ == "__main__":
+    main()

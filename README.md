@@ -15,7 +15,7 @@ The dataset contains **16,611** extracted housing dispute decisions covering cas
 
 ## Licensing & Attribution
 
-This dataset is distributed under the **Creative Commons Attribution 4.0 International (CC-BY-4.0)** license. See the [LICENSE](file:///c:/Users/guycl/OmbudsmanScraper/LICENSE) file for details.
+This dataset is distributed under the **Creative Commons Attribution 4.0 International (CC-BY-4.0)** license. See the [LICENSE](LICENSE) file for details.
 
 ### Source Acknowledgment
 - **Source**: All raw decision reports are sourced directly from the [UK Housing Ombudsman website](https://www.housing-ombudsman.org.uk/decisions/).
@@ -168,27 +168,57 @@ Running the validation check on `ombudsman_insights.db` yields the following sum
 
 ---
 
-## How to Use the Data
+## Getting Started
 
-### 1. Extract the Databases
-Since both SQLite database files exceed GitHub's single-file limit, they are stored as compressed zip archives.
+### Prerequisites
 
-*On Windows (PowerShell):*
-```powershell
-# Extract decisions database
-Expand-Archive -Path ombudsman_decisions.zip -DestinationPath .
-# Extract relational insights database
-Expand-Archive -Path ombudsman_insights.zip -DestinationPath .
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) — a fast Python package manager:
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-*On Linux/macOS:*
+### 1. Clone and install
+
+```bash
+git clone https://github.com/your-org/HousingOmbudsmanData.git
+cd HousingOmbudsmanData
+uv sync
+```
+
+`uv sync` creates a virtual environment and installs all dependencies automatically. No manual `pip install` or `venv` needed.
+
+### 2. Extract the databases
+
+The SQLite files are stored as zip archives due to GitHub's file size limit.
+
 ```bash
 unzip ombudsman_decisions.zip
 unzip ombudsman_insights.zip
 ```
 
-### 2. Analytical Queries (Python Sample)
-You can analyze patterns or train models on the structured data easily:
+On Windows (PowerShell):
+```powershell
+Expand-Archive -Path ombudsman_decisions.zip -DestinationPath .
+Expand-Archive -Path ombudsman_insights.zip -DestinationPath .
+```
+
+### 3. Verify the data loaded correctly
+
+```bash
+uv run verify-decisions   # checks ombudsman_decisions.db (raw scraped data)
+uv run verify-insights    # checks ombudsman_insights.db (structured relational data)
+```
+
+---
+
+## How to Use the Data
+
+### Analytical Queries (Python sample)
 
 ```python
 import sqlite3
@@ -196,7 +226,7 @@ import sqlite3
 conn = sqlite3.connect("ombudsman_insights.db")
 cursor = conn.cursor()
 
-# Query the average compensation ordered for Damp & Mould issues by landlord
+# Average compensation for Damp & Mould cases by landlord
 cursor.execute("""
     SELECT landlords.name, COUNT(cases.id) as case_count, AVG(cases.total_compensation_ordered) as avg_comp
     FROM cases
@@ -218,31 +248,39 @@ conn.close()
 
 ---
 
+## Rebuilding the Insights Database
+
+If you modify the scraper or want to recompile the structured data from scratch:
+
+```bash
+uv run build-insights
+```
+
+This reads `ombudsman_decisions.db` and regenerates `ombudsman_insights.db` using text heuristics.
+
+---
+
 ## Running the Scraper
 
-The repository includes the scraping utility [scraper.py](file:///c:/Users/guycl/OmbudsmanScraper/scraper.py). If you want to update the database or re-scrape decisions, you can use the script directly.
+To harvest new decisions or update the raw database:
 
-### Prerequisites
-Install the required packages:
 ```bash
-pip install requests beautifulsoup4
+# Harvest decision URLs from the first 5 index pages
+uv run scrape --harvest --start-page 1 --end-page 5
+
+# Extract decision content for all URLs in urls.txt
+uv run scrape --extract
+
+# Run both phases in sequence (harvest then extract)
+uv run scrape
 ```
 
-### Script Arguments
-- `--harvest`: Run Phase 1 to harvest decision URLs from index.
-- `--extract`: Run Phase 2 to extract decision content from harvested URLs.
-- `--start-page`: Start page for URL harvesting.
-- `--end-page`: End page for URL harvesting.
-- `--db`: SQLite database filename (default: `ombudsman_decisions.db`).
-- `--urls-file`: Text file to save/read URLs (default: `urls.txt`).
-
-### Examples
-*Harvest the first 5 archive pages:*
-```bash
-python scraper.py --harvest --start-page 1 --end-page 5
-```
-
-*Extract content for all URLs currently listed in `urls.txt`:*
-```bash
-python scraper.py --extract
-```
+### Scraper arguments
+| Flag | Description |
+|------|-------------|
+| `--harvest` | Phase 1: harvest decision URLs from the index |
+| `--extract` | Phase 2: extract decision content from harvested URLs |
+| `--start-page N` | Start page for URL harvesting (default: 1) |
+| `--end-page N` | End page for URL harvesting (default: 10) |
+| `--db FILE` | SQLite database filename (default: `ombudsman_decisions.db`) |
+| `--urls-file FILE` | Text file to read/write URLs (default: `urls.txt`) |
