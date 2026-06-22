@@ -37,6 +37,7 @@ erDiagram
     landlords ||--o{ cases : "resolves"
     cases ||--o{ issues : "contains"
     cases ||--o{ compensation_orders : "orders"
+    cases ||--o{ legal_citations : "cites"
 
     landlords {
         int id PK
@@ -61,6 +62,9 @@ erDiagram
         int vulnerability_mentioned_est
         int communication_failure_est
         int record_keeping_failure_est
+        string doc_format
+        string landlord_type
+        string tenancy_type
         string full_text
     }
 
@@ -78,6 +82,12 @@ erDiagram
         string case_id FK
         float amount
         string description
+    }
+
+    legal_citations {
+        int id PK
+        string case_id FK
+        string statute
     }
 ```
 
@@ -103,6 +113,9 @@ The main case record table containing overall complaint characteristics and outc
 * `vulnerability_mentioned_est` (INTEGER): `1` if resident vulnerability factors (health, disability, mental health, age, children) were noted in the text; `0` otherwise.
 * `communication_failure_est` (INTEGER): `1` if the case notes poor communication, failure to update, or ignoring the tenant; `0` otherwise.
 * `record_keeping_failure_est` (INTEGER): `1` if the case notes poor record-keeping, missing files, or inadequate documentation; `0` otherwise.
+* `doc_format` (TEXT): Document format detected — `'old'` (pre-Oct 2025 REPORT style) or `'new'` (Nov 2025+ Investigation style with repeating Complaint/Finding pairs).
+* `landlord_type` (TEXT): Landlord classification extracted from the document preamble (e.g. `'Housing Association'`, `'Local Authority'`). NULL for old-format docs.
+* `tenancy_type` (TEXT): Tenancy type extracted from the document preamble (e.g. `'Assured Tenancy'`, `'Secure Tenancy'`, `'Leaseholder'`). NULL for old-format docs.
 * `full_text` (TEXT): Full text of the raw Ombudsman decision report.
 
 #### 3. `issues`
@@ -119,6 +132,11 @@ Individual financial awards ordered by the Ombudsman.
 * `amount` (REAL): Numeric award amount in British Pounds (£).
 * `description` (TEXT): Excerpt from the order detailing what the award compensates.
 
+#### 5. `legal_citations`
+Statutes and regulatory frameworks cited within each decision.
+* `case_id` (TEXT, FK): Reference to `cases(case_id)`.
+* `statute` (TEXT): Name of the cited statute or framework (e.g. `'Housing Act 1996'`, `'Equality Act 2010'`, `'Awaab\'s Law'`).
+
 ---
 
 ## Dataset Insights & Statistics
@@ -128,22 +146,23 @@ Running the validation check on `ombudsman_insights.db` yields the following sum
 * **Record Counts**:
   * Landlords: 723
   * Cases: 16,611
-  * Issue-level Determinations: 40,896
-  * Compensation Orders: 30,755
+  * Issue-level Determinations: 42,416
+  * Compensation Orders: 33,708
 
 * **Complaint Upheld Rates**:
-  * **Overall Upheld Cases**: **71.6%** (11,896 out of 16,611 cases had at least one finding of failure against the landlord).
-  * **Overall Upheld Issues**: **60.9%** (24,897 out of 40,896 issue determinations upheld).
+  * **Overall Upheld Cases**: **73.3%** (12,177 out of 16,611 cases had at least one finding of failure against the landlord).
+  * **Overall Upheld Issues**: **61.0%** (25,872 out of 42,416 issue determinations upheld).
   * **Upheld Rate by Dispute Category**:
-    * Damp & Mould: **77.2%** (2,038 / 2,639)
-    * Leaks & Water Ingress: **67.7%** (1,360 / 2,010)
-    * Complaint Handling: **60.7%** (15,191 / 25,008)
-    * Pest Control: **59.5%** (22 / 37)
-    * Anti-Social Behaviour (ASB): **56.9%** (1,322 / 2,325)
-    * Repairs & Maintenance: **55.9%** (179 / 320)
-    * Rent & Service Charges: **52.5%** (1,020 / 1,944)
-    * Estate Management: **44.8%** (91 / 203)
-    * Other: **57.3%** (3,674 / 6,410)
+    * Damp & Mould: **78.1%** (2,619 / 3,352)
+    * Leaks & Water Ingress: **68.1%** (1,616 / 2,372)
+    * Repairs & Maintenance: **63.6%** (1,700 / 2,674)
+    * Pest Control: **63.4%** (354 / 558)
+    * Complaint Handling: **59.6%** (12,879 / 21,614)
+    * Anti-Social Behaviour (ASB): **58.9%** (1,568 / 2,663)
+    * Estate Management: **57.3%** (1,017 / 1,775)
+    * Rent & Service Charges: **49.2%** (410 / 833)
+    * Rehousing & Allocations: **47.1%** (263 / 558)
+    * Other: **57.3%** (3,446 / 6,017)
 
 * **Ombudsman Remedies & Orders (Case Level)**:
   * **Repairs/Works Ordered**: **42.2%** (7,002 cases)
@@ -161,10 +180,21 @@ Running the validation check on `ombudsman_insights.db` yields the following sum
   * Exceeded standards rate: **40.6%** of cases with classified timescale compliance language.
 
 * **Financial Compensation**:
-  * Total Compensation Ordered: **£14,090,950.00**
-  * Cases with Ordered Compensation: **49.4%**
-  * Average Compensation (where ordered): **£1,718.20**
-  * Maximum Single Case Compensation: **£86,831.00** (awarded to a tenant of Hackney Council).
+  * Total Compensation Ordered: **£17,647,503.00**
+  * Cases with Ordered Compensation: **63.2%**
+  * Average Compensation (where ordered): **£1,680.23**
+  * Maximum Single Case Compensation: **£374,457.00** (Peabody Trust, case 202222583).
+
+* **Document Format**:
+  * Old format (pre-Oct 2025 REPORT style): **88.5%** (14,694 cases)
+  * New format (Nov 2025+ Investigation style with Complaint/Finding pairs): **11.5%** (1,917 cases)
+
+* **Legal Citations (top statutes referenced)**:
+  * Housing Ombudsman Scheme: **88.6%** of cases
+  * Housing Act 1996: **84.8%** of cases
+  * Landlord and Tenant Act 1985: **14.5%** of cases
+  * Housing Health and Safety Rating System (HHSRS): **9.0%** of cases
+  * Equality Act 2010: **3.8%** of cases
 
 ---
 
