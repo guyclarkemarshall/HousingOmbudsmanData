@@ -146,23 +146,23 @@ Running the validation check on `ombudsman_insights.db` yields the following sum
 * **Record Counts**:
   * Landlords: 723
   * Cases: 16,611
-  * Issue-level Determinations: 45,373
-  * Compensation Orders: 27,341
+  * Issue-level Determinations: 42,416
+  * Compensation Orders: 33,708
 
 * **Complaint Upheld Rates**:
-  * **Overall Upheld Cases**: **72.2%** (11,997 out of 16,611 cases had at least one finding of failure against the landlord).
-  * **Overall Upheld Issues**: **60.6%** (27,511 out of 45,373 issue determinations upheld).
+  * **Overall Upheld Cases**: **73.3%** (12,177 out of 16,611 cases had at least one finding of failure against the landlord).
+  * **Overall Upheld Issues**: **61.0%** (25,872 out of 42,416 issue determinations upheld).
   * **Upheld Rate by Dispute Category**:
-    * Damp & Mould: **76.9%** (2,440 / 3,175)
-    * Leaks & Water Ingress: **67.9%** (1,548 / 2,279)
-    * Repairs & Maintenance: **64.1%** (1,586 / 2,473)
-    * Pest Control: **60.4%** (298 / 493)
-    * Complaint Handling: **60.2%** (13,774 / 22,874)
-    * Anti-Social Behaviour (ASB): **57.6%** (1,501 / 2,605)
-    * Estate Management: **57.5%** (974 / 1,695)
-    * Rent & Service Charges: **48.5%** (398 / 820)
-    * Rehousing & Allocations: **45.2%** (235 / 520)
-    * Other: **56.4%** (4,757 / 8,439)
+    * Damp & Mould: **78.1%** (2,619 / 3,352)
+    * Leaks & Water Ingress: **68.1%** (1,616 / 2,372)
+    * Repairs & Maintenance: **63.6%** (1,700 / 2,674)
+    * Pest Control: **63.4%** (354 / 558)
+    * Complaint Handling: **59.6%** (12,879 / 21,614)
+    * Anti-Social Behaviour (ASB): **58.9%** (1,568 / 2,663)
+    * Estate Management: **57.3%** (1,017 / 1,775)
+    * Rent & Service Charges: **49.2%** (410 / 833)
+    * Rehousing & Allocations: **47.1%** (263 / 558)
+    * Other: **57.3%** (3,446 / 6,017)
 
 * **Ombudsman Remedies & Orders (Case Level)**:
   * **Repairs/Works Ordered**: **42.2%** (7,002 cases)
@@ -180,9 +180,9 @@ Running the validation check on `ombudsman_insights.db` yields the following sum
   * Exceeded standards rate: **40.6%** of cases with classified timescale compliance language.
 
 * **Financial Compensation**:
-  * Total Compensation Ordered: **£14,882,131.00**
-  * Cases with Ordered Compensation: **54.2%**
-  * Average Compensation (where ordered): **£1,653.57**
+  * Total Compensation Ordered: **£17,647,503.00**
+  * Cases with Ordered Compensation: **63.2%**
+  * Average Compensation (where ordered): **£1,680.23**
   * Maximum Single Case Compensation: **£374,457.00** (Peabody Trust, case 202222583).
 
 * **Document Format**:
