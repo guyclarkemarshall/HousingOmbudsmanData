@@ -11,6 +11,61 @@ import sqlite3
 
 from section_splitter import detect_format, split_sections, extract_complaint_finding_pairs
 
+# Valid finding outcomes and their normalized casings
+NORMALIZED_OUTCOMES = {
+    'no maladministration': 'No Maladministration',
+    'service failure': 'Service Failure',
+    'maladministration': 'Maladministration',
+    'severe maladministration': 'Severe Maladministration',
+    'reasonable redress': 'Reasonable Redress',
+    'outside jurisdiction': 'Outside Jurisdiction',
+    'choose an item.': 'Choose an item.'
+}
+
+def extract_pairs(text):
+    """Parses text line-by-line to extract complaint and finding pairs."""
+    if not text:
+        return []
+        
+    text = text.replace('\r\n', '\n')
+    lines = text.split('\n')
+    
+    pairs = []
+    i = 0
+    n = len(lines)
+    
+    while i < n:
+        line = lines[i].strip()
+        if line.lower() == 'complaint':
+            complaint_lines = []
+            j = i + 1
+            found_finding = False
+            
+            while j < n:
+                next_line = lines[j].strip()
+                if next_line.lower() == 'complaint':
+                    break
+                if next_line.lower() == 'finding':
+                    found_finding = True
+                    break
+                complaint_lines.append(next_line)
+                j += 1
+            
+            if found_finding and j + 1 < n:
+                outcome = lines[j+1].strip()
+                outcome_clean = outcome.rstrip('.').strip()
+                outcome_lower = outcome_clean.lower()
+                if outcome_lower in NORMALIZED_OUTCOMES:
+                    complaint_desc = " ".join(" ".join(complaint_lines).split()).strip()
+                    normalized_outcome = NORMALIZED_OUTCOMES[outcome_lower]
+                    pairs.append((complaint_desc, normalized_outcome))
+                    i = j + 2
+                    continue
+        i += 1
+        
+    return pairs
+
+
 # Config
 SRC_DB = "ombudsman_decisions.db"
 DEST_DB = "ombudsman_insights.db"
@@ -85,6 +140,7 @@ def init_dest_db(db_path):
             determination TEXT NOT NULL,
             category TEXT NOT NULL,
             is_upheld_est INTEGER DEFAULT 0,
+            extracted_from TEXT NOT NULL DEFAULT 'text',
             FOREIGN KEY (case_id) REFERENCES cases(case_id) ON DELETE CASCADE
         )
     """)
@@ -464,24 +520,19 @@ def compile_database():
         tenancy_type = extract_tenancy_type(sections)
         cited_statutes = extract_legal_citations(full_text)
         
-        # 6. Parse issues and determinations
-        findings_primary = parse_determinations(full_text)
-
-        # For new-format docs, also extract from structured Complaint/Finding pairs
-        findings_secondary = []
-        if doc_format == 'new':
-            for pair in extract_complaint_finding_pairs(full_text):
-                outcome = pair['outcome']
-                is_upheld = 1 if outcome in UPHELD_DETERMINATIONS else 0
-                findings_secondary.append((pair['complaint'], outcome, is_upheld))
-
-        # Merge: add secondary findings not already captured by primary (dedupe by prefix)
-        seen_prefixes = {f[0][:60].lower() for f in findings_primary}
-        findings = list(findings_primary)
-        for desc, det, upheld in findings_secondary:
-            if desc[:60].lower() not in seen_prefixes:
-                findings.append((desc, det, upheld))
-                seen_prefixes.add(desc[:60].lower())
+        # 6. Parse issues/determinations using the table-or-text fallback logic
+        pairs = extract_pairs(full_text)
+        extracted_from = 'table'
+        
+        if not pairs:
+            dets = parse_determinations(full_text)
+            findings = dets
+            extracted_from = 'text'
+        else:
+            findings = []
+            for comp, find in pairs:
+                is_upheld = 1 if find in UPHELD_DETERMINATIONS else 0
+                findings.append((comp, find, is_upheld))
 
         case_upheld = 0
         issue_rows = []
@@ -489,7 +540,7 @@ def compile_database():
             category = classify_category(sentence)
             if is_upheld:
                 case_upheld = 1
-            issue_rows.append((sentence, outcome, category, is_upheld))
+            issue_rows.append((sentence, outcome, category, is_upheld, extracted_from))
             
         # 7. Insert Case
         try:
@@ -528,11 +579,11 @@ def compile_database():
             cases_inserted += 1
             
         # 8. Insert Issues
-        for sentence, outcome, category, is_upheld in issue_rows:
+        for sentence, outcome, category, is_upheld, extracted_from in issue_rows:
             dest_cursor.execute("""
-                INSERT INTO issues (case_id, description, determination, category, is_upheld_est)
-                VALUES (?, ?, ?, ?, ?)
-            """, (case_id, sentence, outcome, category, is_upheld))
+                INSERT INTO issues (case_id, description, determination, category, is_upheld_est, extracted_from)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (case_id, sentence, outcome, category, is_upheld, extracted_from))
             issues_inserted += 1
             
         # 9. Insert Compensation Details
