@@ -5,7 +5,6 @@ version: 1.0.0
 status: draft
 name: housing-ombudsman-decisions
 domain: housing-regulation
-dataProduct: housing-ombudsman-decisions
 tenant: OpenDataContractStandard
 contractCreatedTs: "2026-06-23T00:00:00Z"
 
@@ -15,6 +14,7 @@ tags:
   - uk
   - social-housing
   - regulatory-decisions
+  - llm-extracted
 
 description:
   purpose: >
@@ -37,6 +37,11 @@ description:
     Use cases include landlord benchmarking, policy compliance analysis,
     compensation trend modelling, and training datasets for NLP/LLM systems
     operating in the social housing regulatory domain.
+  authoritativeDefinitions:
+    - type: terms_and_conditions
+      url: "https://www.housing-ombudsman.org.uk/about-us/terms-and-conditions/"
+    - type: business_policy
+      url: "https://bitol-io.github.io/open-data-contract-standard/v3.1.0/"
 
 schema:
   - name: landlords
@@ -72,6 +77,7 @@ schema:
         physicalType: TEXT
         required: true
         unique: true
+        criticalDataElement: true
         description: >
           Official registered name of the landlord as it appears in Ombudsman
           publications.
@@ -114,23 +120,17 @@ schema:
         severity: error
         description: All boolean _est integer flags must be 0 or 1.
       - type: sql
-        query: "SELECT COUNT(*) FROM issues i LEFT JOIN cases c ON i.case_id = c.case_id WHERE c.case_id IS NULL"
+        query: "SELECT COUNT(*) FROM cases WHERE (timescales_exceeded_est NOT IN (0,1) AND timescales_exceeded_est IS NOT NULL) OR (apology_ordered_est NOT IN (0,1) AND apology_ordered_est IS NOT NULL) OR (repairs_ordered_est NOT IN (0,1) AND repairs_ordered_est IS NOT NULL) OR (review_or_training_ordered_est NOT IN (0,1) AND review_or_training_ordered_est IS NOT NULL) OR (vulnerability_mentioned_est NOT IN (0,1) AND vulnerability_mentioned_est IS NOT NULL) OR (communication_failure_est NOT IN (0,1) AND communication_failure_est IS NOT NULL) OR (record_keeping_failure_est NOT IN (0,1) AND record_keeping_failure_est IS NOT NULL)"
         mustBe: 0
-        dimension: consistency
+        dimension: conformity
         severity: error
-        description: All issue rows must reference a valid parent case (referential integrity).
+        description: All boolean _est integer flags must be 0 or 1 (or null).
       - type: sql
-        query: "SELECT COUNT(*) FROM compensation_orders co LEFT JOIN cases c ON co.case_id = c.case_id WHERE c.case_id IS NULL"
+        query: "SELECT COUNT(*) FROM cases c LEFT JOIN (SELECT case_id, SUM(amount) AS total FROM compensation_orders GROUP BY case_id) co ON c.case_id = co.case_id WHERE ABS(COALESCE(c.total_compensation_ordered, 0) - COALESCE(co.total, 0)) > 0.01"
         mustBe: 0
         dimension: consistency
         severity: error
-        description: All compensation_order rows must reference a valid parent case (referential integrity).
-      - type: sql
-        query: "SELECT COUNT(*) FROM legal_citations lc LEFT JOIN cases c ON lc.case_id = c.case_id WHERE c.case_id IS NULL"
-        mustBe: 0
-        dimension: consistency
-        severity: error
-        description: All legal_citation rows must reference a valid parent case (referential integrity).
+        description: cases.total_compensation_ordered must equal the sum of compensation_orders.amount for the same case_id.
     properties:
       - name: id
         logicalType: integer
@@ -147,6 +147,7 @@ schema:
         physicalType: TEXT
         required: true
         unique: true
+        criticalDataElement: true
         description: >
           Ombudsman reference number (e.g. '202347433'). Used as the natural
           key across all child tables. Corresponds to the numeric suffix in the
@@ -327,6 +328,13 @@ schema:
           'old' = legacy Report style. The format affects extraction fidelity
           for _est fields.
         classification: public
+        quality:
+          - type: sql
+            query: "SELECT COUNT(*) FROM cases WHERE doc_format NOT IN ('new','old') AND doc_format IS NOT NULL"
+            mustBe: 0
+            dimension: conformity
+            severity: error
+            description: doc_format must be 'new' or 'old'.
 
       - name: landlord_type
         logicalType: string
@@ -338,6 +346,13 @@ schema:
           Authority', 'For Profit', 'Voluntary'. Raw values may vary due to
           extraction variability. LLM-estimated.
         classification: public
+        quality:
+          - type: sql
+            query: "SELECT COUNT(*) FROM cases WHERE landlord_type NOT IN ('Housing Association','Local Authority','For Profit','Voluntary') AND landlord_type IS NOT NULL"
+            mustBe: 0
+            dimension: conformity
+            severity: warning
+            description: landlord_type should be one of the four normalised values. Warnings indicate LLM extraction variants.
 
       - name: tenancy_type
         logicalType: string
@@ -349,6 +364,13 @@ schema:
           Tenancy', 'Shared Ownership', 'Leaseholder', etc. Raw values may
           vary. LLM-estimated.
         classification: public
+        quality:
+          - type: sql
+            query: "SELECT COUNT(*) FROM cases WHERE tenancy_type NOT IN ('Assured Tenancy','Secure Tenancy','Shared Ownership','Leaseholder','Introductory Tenancy','Starter Tenancy','Assured Shorthold Tenancy','Demoted Tenancy') AND tenancy_type IS NOT NULL"
+            mustBe: 0
+            dimension: conformity
+            severity: warning
+            description: tenancy_type should be one of the normalised TenancyType values. Warnings indicate LLM extraction variants.
 
       - name: full_text
         logicalType: string
@@ -375,7 +397,13 @@ schema:
       - category
     quality:
       - type: sql
-        query: "SELECT COUNT(*) FROM issues WHERE determination NOT IN ('No Maladministration','Service Failure','Maladministration','Severe Maladministration','Reasonable Redress')"
+        query: "SELECT COUNT(*) FROM issues i LEFT JOIN cases c ON i.case_id = c.case_id WHERE c.case_id IS NULL"
+        mustBe: 0
+        dimension: consistency
+        severity: error
+        description: All issue rows must reference a valid parent case (referential integrity).
+      - type: sql
+        query: "SELECT COUNT(*) FROM issues WHERE determination IS NOT NULL AND determination NOT IN ('No Maladministration','Service Failure','Maladministration','Severe Maladministration','Reasonable Redress')"
         mustBe: 0
         dimension: conformity
         severity: error
@@ -419,6 +447,7 @@ schema:
         logicalType: string
         physicalType: TEXT
         required: true
+        criticalDataElement: true
         description: >
           The Ombudsman's formal ruling on this issue. Severity scale
           (ascending): 'No Maladministration' < 'Service Failure' <
@@ -482,6 +511,12 @@ schema:
       - remedy
     quality:
       - type: sql
+        query: "SELECT COUNT(*) FROM compensation_orders co LEFT JOIN cases c ON co.case_id = c.case_id WHERE c.case_id IS NULL"
+        mustBe: 0
+        dimension: consistency
+        severity: error
+        description: All compensation_order rows must reference a valid parent case (referential integrity).
+      - type: sql
         query: "SELECT COUNT(*) FROM compensation_orders WHERE amount <= 0"
         mustBe: 0
         dimension: conformity
@@ -513,6 +548,7 @@ schema:
         logicalType: number
         physicalType: REAL
         required: true
+        criticalDataElement: true
         description: >
           Compensation amount in GBP ordered by the Ombudsman. Excludes any
           landlord-offered compensation at Stage 1/2.
@@ -548,6 +584,26 @@ schema:
       - legislation
       - citation
       - legal
+    quality:
+      - type: sql
+        query: "SELECT COUNT(*) FROM legal_citations lc LEFT JOIN cases c ON lc.case_id = c.case_id WHERE c.case_id IS NULL"
+        mustBe: 0
+        dimension: consistency
+        severity: error
+        description: All legal_citation rows must reference a valid parent case (referential integrity).
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 1000
+        unit: rows
+        dimension: coverage
+        severity: warning
+        description: legal_citations should contain at least 1,000 rows given case volume.
+      - type: sql
+        query: "SELECT COUNT(*) FROM (SELECT case_id, statute, COUNT(*) FROM legal_citations GROUP BY case_id, statute HAVING COUNT(*) > 1)"
+        mustBe: 0
+        dimension: uniqueness
+        severity: warning
+        description: Duplicate (case_id, statute) pairs indicate repeated LLM citation extraction.
     properties:
       - name: id
         logicalType: integer
@@ -678,6 +734,4 @@ customProperties:
   - property: dataClassification
     value: public
     description: >
-      Decision text is publicly available on the Housing Ombudsman website.
-      No personal data beyond what appears in the published decisions is
-      stored. Residents are not personally identified in published decisions.
+      Structured fields (all tables except full_text) are publicly available data from the Housing Ombudsman website. The full_text column in cases is classified restricted as it reproduces verbatim decision text that may contain personal details.
