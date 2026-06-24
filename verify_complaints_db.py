@@ -24,15 +24,13 @@ def verify_database():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # 1. Check table existence
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = [t[0] for t in cursor.fetchall() if t[0] != 'sqlite_sequence']
-    print(f"Tables in Database: {tables}")
-    
-    # 2. Total records
-    cursor.execute("SELECT COUNT(*), COUNT(DISTINCT case_id), COUNT(DISTINCT landlord) FROM complaint_findings")
+    # 1. Total records
+    cursor.execute("""
+        SELECT COUNT(*), COUNT(DISTINCT case_id), COUNT(DISTINCT landlord) 
+        FROM complaint_findings
+    """)
     total_records, distinct_cases, distinct_landlords = cursor.fetchone()
-    print("\n=== RECORD COUNTS ===")
+    print("=== RECORD COUNTS ===")
     print(f"Total Complaint-Finding pairs : {total_records}")
     print(f"Total Unique Case IDs          : {distinct_cases}")
     print(f"Total Unique Landlord Names    : {distinct_landlords}")
@@ -41,6 +39,17 @@ def verify_database():
         print("No records found in database.")
         conn.close()
         return
+        
+    # 2. Extracted From distribution
+    print("\n=== EXTRACTION SOURCE DISTRIBUTION ===")
+    cursor.execute("""
+        SELECT extracted_from, COUNT(*) as cnt, (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM complaint_findings)) as pct
+        FROM complaint_findings
+        GROUP BY extracted_from
+        ORDER BY cnt DESC
+    """)
+    for src, cnt, pct in cursor.fetchall():
+        print(f"  - {src:<15}: {cnt:>5} ({pct:>5.1f}%)")
         
     # 3. Finding distributions
     print("\n=== FINDING OUTCOME DISTRIBUTION ===")
@@ -59,7 +68,7 @@ def verify_database():
         SELECT category, COUNT(*) as cnt, (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM complaint_findings)) as pct
         FROM complaint_findings
         GROUP BY category
-        ORDER BY cnt DESC
+        ORDER BY cnt DESC LIMIT 15
     """)
     for category, cnt, pct in cursor.fetchall():
         print(f"  - {category:<30}: {cnt:>5} ({pct:>5.1f}%)")
@@ -70,18 +79,19 @@ def verify_database():
         SELECT landlord_type, COUNT(*) as cnt, (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM complaint_findings)) as pct
         FROM complaint_findings
         GROUP BY landlord_type
-        ORDER BY cnt DESC
+        ORDER BY cnt DESC LIMIT 10
     """)
     for ltype, cnt, pct in cursor.fetchall():
         ltype_str = ltype if ltype else "NULL (unknown)"
         print(f"  - {ltype_str:<40}: {cnt:>5} ({pct:>5.1f}%)")
         
-    # 6. Sample records
-    print("\n=== SAMPLE RECORDS (First 5) ===")
+    # 6. Sample records from TABLE extraction
+    print("\n=== SAMPLE TABLE EXTRACTIONS ===")
     cursor.execute("""
-        SELECT id, case_id, landlord, landlord_type, decision_date, category, complaint, finding, decision_id
+        SELECT id, case_id, landlord, landlord_id, landlord_type, decision_date, category, complaint, finding, extracted_from, decision_id
         FROM complaint_findings
-        LIMIT 5
+        WHERE extracted_from = 'table'
+        LIMIT 3
     """)
     rows = cursor.fetchall()
     for row in rows:
@@ -89,22 +99,46 @@ def verify_database():
         print(f"Record ID     : {row[0]}")
         print(f"Case ID       : {row[1]}")
         print(f"Landlord Name : {row[2]}")
-        print(f"Landlord Type : {row[3]}")
-        print(f"Decision Date : {row[4]}")
-        print(f"Category      : {row[5]}")
-        print(f"Complaint     : {row[6]}")
-        print(f"Finding       : {row[7]}")
-        print(f"Decision ID   : {row[8]}")
+        print(f"Landlord ID   : {row[3]}")
+        print(f"Landlord Type : {row[4]}")
+        print(f"Decision Date : {row[5]}")
+        print(f"Category      : {row[6]}")
+        print(f"Complaint     : {row[7]}")
+        print(f"Finding       : {row[8]}")
+        print(f"Source        : {row[9]}")
+        print(f"Decision ID   : {row[10]}")
+        
+    # 7. Sample records from TEXT extraction
+    print("\n=== SAMPLE TEXT EXTRACTIONS ===")
+    cursor.execute("""
+        SELECT id, case_id, landlord, landlord_id, landlord_type, decision_date, category, complaint, finding, extracted_from, decision_id
+        FROM complaint_findings
+        WHERE extracted_from = 'text'
+        LIMIT 3
+    """)
+    rows = cursor.fetchall()
+    for row in rows:
+        print("-" * 80)
+        print(f"Record ID     : {row[0]}")
+        print(f"Case ID       : {row[1]}")
+        print(f"Landlord Name : {row[2]}")
+        print(f"Landlord ID   : {row[3]}")
+        print(f"Landlord Type : {row[4]}")
+        print(f"Decision Date : {row[5]}")
+        print(f"Category      : {row[6]}")
+        print(f"Complaint     : {row[7]}")
+        print(f"Finding       : {row[8]}")
+        print(f"Source        : {row[9]}")
+        print(f"Decision ID   : {row[10]}")
         
     conn.close()
     
-    # 7. Verify CSV file
+    # 8. Verify CSV file
     print("\n=== CSV EXPORT FILE VALIDATION ===")
     if not os.path.exists(CSV_NAME):
         print(f"Error: Exported CSV file '{CSV_NAME}' not found!")
     else:
         print(f"CSV file '{CSV_NAME}' found.")
-        # Count lines in CSV
         with open(CSV_NAME, mode='r', encoding='utf-8-sig') as f:
             reader = csv.reader(f)
             csv_rows = list(reader)
@@ -112,7 +146,6 @@ def verify_database():
             if len(csv_rows) > 1:
                 print("Header row      :", csv_rows[0])
                 print("First data row  :", csv_rows[1])
-                print("Second data row :", csv_rows[2])
 
 if __name__ == '__main__':
     verify_database()

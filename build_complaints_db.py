@@ -2,6 +2,7 @@
 """
 UK Housing Ombudsman - Complaints & Findings Database Compiler
 Extracts structured complaint + finding tables from the decisions text and stores them in a single denormalized SQLite table.
+If no tables are found, extracts decision summaries (determinations) from the text.
 Also exports the compiled table directly into a CSV file.
 """
 
@@ -13,7 +14,7 @@ import csv
 
 # Import helper functions from project files
 from section_splitter import split_sections
-from build_insights_db import extract_landlord_type, classify_category
+from build_insights_db import extract_landlord_type, classify_category, parse_determinations
 
 # Set standard output to UTF-8 to prevent console encoding exceptions
 sys.stdout.reconfigure(encoding='utf-8')
@@ -109,11 +110,13 @@ def init_dest_db(db_path):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             case_id TEXT NOT NULL,
             landlord TEXT,
+            landlord_id INTEGER,
             landlord_type TEXT,
             decision_date TEXT,
             category TEXT NOT NULL,
             complaint TEXT NOT NULL,
             finding TEXT NOT NULL,
+            extracted_from TEXT NOT NULL,
             decision_id INTEGER NOT NULL
         )
     """)
@@ -124,6 +127,7 @@ def init_dest_db(db_path):
     cursor.execute("CREATE INDEX idx_cf_finding ON complaint_findings(finding)")
     cursor.execute("CREATE INDEX idx_cf_landlord ON complaint_findings(landlord)")
     cursor.execute("CREATE INDEX idx_cf_category ON complaint_findings(category)")
+    cursor.execute("CREATE INDEX idx_cf_extracted ON complaint_findings(extracted_from)")
     
     conn.commit()
     conn.close()
@@ -136,7 +140,7 @@ def export_to_csv():
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT id, case_id, landlord, landlord_type, decision_date, category, complaint, finding, decision_id
+        SELECT id, case_id, landlord, landlord_id, landlord_type, decision_date, category, complaint, finding, extracted_from, decision_id
         FROM complaint_findings
     """)
     rows = cursor.fetchall()
@@ -145,11 +149,13 @@ def export_to_csv():
         "Record ID",
         "Case ID",
         "Landlord Name",
+        "Landlord ID",
         "Landlord Type",
         "Decision Date",
         "Category",
         "Complaint Description",
         "Finding Outcome",
+        "Extracted From",
         "Source Decision ID"
     ]
     
@@ -180,6 +186,7 @@ def build_database():
     total_docs = len(rows)
     print(f"Loaded {total_docs} cases from source database. Extracting pairs and metadata...")
     
+    landlord_cache = {}  # landlord_name -> landlord_id
     inserted_count = 0
     cases_with_pairs = 0
     
@@ -187,27 +194,43 @@ def build_database():
         doc_id, url, title, decision_date, landlord_name, full_text = row
         case_id = parse_case_id(title, url)
         
+        # Standardize landlord
+        landlord_clean = landlord_name.strip() if landlord_name else "Unknown Landlord"
+        if landlord_clean not in landlord_cache:
+            landlord_cache[landlord_clean] = len(landlord_cache) + 1
+        landlord_id = landlord_cache[landlord_clean]
+        
+        # Extract landlord type by splitting sections
+        sections = split_sections(full_text)
+        landlord_type = extract_landlord_type(sections)
+        
+        # Try table extraction first
         pairs = extract_pairs(full_text)
+        extracted_from = 'table'
+        
+        # Fallback to parsing text determinations if no table found
+        if not pairs:
+            dets = parse_determinations(full_text)
+            if dets:
+                pairs = [(sentence, outcome) for sentence, outcome, _ in dets]
+                extracted_from = 'text'
+                
         if pairs:
             cases_with_pairs += 1
-            
-            # Standardize landlord
-            landlord_clean = landlord_name.strip() if landlord_name else "Unknown Landlord"
-            
-            # Extract landlord type by splitting sections
-            sections = split_sections(full_text)
-            landlord_type = extract_landlord_type(sections)
-            
             for comp, find in pairs:
                 # Classify the category of the complaint
                 category = classify_category(comp)
                 
+                # Double check finding normalization
+                find_lower = find.lower()
+                normalized_find = NORMALIZED_OUTCOMES.get(find_lower, find)
+                
                 dest_cursor.execute("""
                     INSERT INTO complaint_findings (
-                        case_id, landlord, landlord_type, decision_date, category, complaint, finding, decision_id
+                        case_id, landlord, landlord_id, landlord_type, decision_date, category, complaint, finding, extracted_from, decision_id
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (case_id, landlord_clean, landlord_type, decision_date, category, comp, find, doc_id))
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (case_id, landlord_clean, landlord_id, landlord_type, decision_date, category, comp, normalized_find, extracted_from, doc_id))
                 inserted_count += 1
                 
         if idx % 2000 == 0 or idx == total_docs:
@@ -219,6 +242,7 @@ def build_database():
     
     print("\nDatabase compilation completed successfully!")
     print(f"Relational records saved:")
+    print(f"  - Total Unique Landlords:  {len(landlord_cache)}")
     print(f"  - Total Cases with Pairs:  {cases_with_pairs}")
     print(f"  - Total Pairs Inserted:    {inserted_count}")
     
