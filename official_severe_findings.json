@@ -1,0 +1,1163 @@
+[
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Birmingham City Council",
+    "severe_findings": 10,
+    "severe_pct": "6%",
+    "maladmin_pct": "81%",
+    "determinations": 74,
+    "findings": 176
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Clarion Housing Association",
+    "severe_findings": 16,
+    "severe_pct": "2%",
+    "maladmin_pct": "60%",
+    "determinations": 270,
+    "findings": 690
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Home Group",
+    "severe_findings": 5,
+    "severe_pct": "4%",
+    "maladmin_pct": "73%",
+    "determinations": 41,
+    "findings": 112
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "London & Quadrant Housing Trust (L&Q)",
+    "severe_findings": 77,
+    "severe_pct": "7%",
+    "maladmin_pct": "72%",
+    "determinations": 421,
+    "findings": 1073
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Metropolitan Thames Valley Housing (MTV)",
+    "severe_findings": 10,
+    "severe_pct": "3%",
+    "maladmin_pct": "77%",
+    "determinations": 157,
+    "findings": 387
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Notting Hill Genesis (NHG)",
+    "severe_findings": 22,
+    "severe_pct": "5%",
+    "maladmin_pct": "67%",
+    "determinations": 157,
+    "findings": 416
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Peabody Trust",
+    "severe_findings": 34,
+    "severe_pct": "7%",
+    "maladmin_pct": "69%",
+    "determinations": 229,
+    "findings": 520
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Places for People Homes",
+    "severe_findings": 2,
+    "severe_pct": "1%",
+    "maladmin_pct": "62%",
+    "determinations": 52,
+    "findings": 143
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Sanctuary Housing Association",
+    "severe_findings": 20,
+    "severe_pct": "6%",
+    "maladmin_pct": "59%",
+    "determinations": 129,
+    "findings": 326
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Southern Housing",
+    "severe_findings": 24,
+    "severe_pct": "6%",
+    "maladmin_pct": "74%",
+    "determinations": 168,
+    "findings": 432
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Southwark Council",
+    "severe_findings": 9,
+    "severe_pct": "5%",
+    "maladmin_pct": "74%",
+    "determinations": 77,
+    "findings": 182
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "Sovereign Network Group",
+    "severe_findings": 10,
+    "severe_pct": "4%",
+    "maladmin_pct": "71%",
+    "determinations": 117,
+    "findings": 259
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "The Guinness Partnership",
+    "severe_findings": 8,
+    "severe_pct": "3%",
+    "maladmin_pct": "68%",
+    "determinations": 135,
+    "findings": 313
+  },
+  {
+    "category": "More than 50,000 homes",
+    "landlord": "The Riverside Group",
+    "severe_findings": 9,
+    "severe_pct": "4%",
+    "maladmin_pct": "77%",
+    "determinations": 109,
+    "findings": 218
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "A2Dominion Housing Group",
+    "severe_findings": 11,
+    "severe_pct": "6%",
+    "maladmin_pct": "79%",
+    "determinations": 80,
+    "findings": 182
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Abri Group",
+    "severe_findings": 1,
+    "severe_pct": "1%",
+    "maladmin_pct": "47%",
+    "determinations": 46,
+    "findings": 109
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Accent Group",
+    "severe_findings": 2,
+    "severe_pct": "2%",
+    "maladmin_pct": "82%",
+    "determinations": 39,
+    "findings": 83
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Amplius Living",
+    "severe_findings": 10,
+    "severe_pct": "7%",
+    "maladmin_pct": "81%",
+    "determinations": 60,
+    "findings": 137
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Aster Group",
+    "severe_findings": 2,
+    "severe_pct": "3%",
+    "maladmin_pct": "50%",
+    "determinations": 34,
+    "findings": 78
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Brighton and Hove City Council",
+    "severe_findings": 1,
+    "severe_pct": "3%",
+    "maladmin_pct": "84%",
+    "determinations": 16,
+    "findings": 38
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Bristol City Council",
+    "severe_findings": 2,
+    "severe_pct": "4%",
+    "maladmin_pct": "78%",
+    "determinations": 19,
+    "findings": 50
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Bromford Housing Association",
+    "severe_findings": 2,
+    "severe_pct": "2%",
+    "maladmin_pct": "58%",
+    "determinations": 30,
+    "findings": 86
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Camden Council",
+    "severe_findings": 13,
+    "severe_pct": "6%",
+    "maladmin_pct": "89%",
+    "determinations": 95,
+    "findings": 213
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Citizen Housing",
+    "severe_findings": 3,
+    "severe_pct": "3%",
+    "maladmin_pct": "62%",
+    "determinations": 47,
+    "findings": 87
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Connexus Housing",
+    "severe_findings": 1,
+    "severe_pct": "4%",
+    "maladmin_pct": "68%",
+    "determinations": 13,
+    "findings": 28
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Cornwall Housing",
+    "severe_findings": 2,
+    "severe_pct": "13%",
+    "maladmin_pct": "67%",
+    "determinations": 8,
+    "findings": 15
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Curo Places",
+    "severe_findings": 2,
+    "severe_pct": "3%",
+    "maladmin_pct": "69%",
+    "determinations": 24,
+    "findings": 58
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Dacorum Borough Council",
+    "severe_findings": 1,
+    "severe_pct": "3%",
+    "maladmin_pct": "72%",
+    "determinations": 13,
+    "findings": 36
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "East Midlands Housing Group",
+    "severe_findings": 3,
+    "severe_pct": "7%",
+    "maladmin_pct": "81%",
+    "determinations": 23,
+    "findings": 41
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "ForHousing",
+    "severe_findings": 1,
+    "severe_pct": "1%",
+    "maladmin_pct": "63%",
+    "determinations": 38,
+    "findings": 82
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Gateshead Metropolitan Borough Council",
+    "severe_findings": 2,
+    "severe_pct": "4%",
+    "maladmin_pct": "85%",
+    "determinations": 21,
+    "findings": 47
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "GreenSquareAccord",
+    "severe_findings": 2,
+    "severe_pct": "5%",
+    "maladmin_pct": "51%",
+    "determinations": 18,
+    "findings": 37
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Hammersmith and Fulham",
+    "severe_findings": 5,
+    "severe_pct": "5%",
+    "maladmin_pct": "68%",
+    "determinations": 58,
+    "findings": 111
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Haringey London Borough Council",
+    "severe_findings": 25,
+    "severe_pct": "17%",
+    "maladmin_pct": "95%",
+    "determinations": 66,
+    "findings": 147
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Harlow District Council",
+    "severe_findings": 3,
+    "severe_pct": "8%",
+    "maladmin_pct": "87%",
+    "determinations": 20,
+    "findings": 37
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Havering Council",
+    "severe_findings": 2,
+    "severe_pct": "7%",
+    "maladmin_pct": "80%",
+    "determinations": 13,
+    "findings": 30
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Hyde Housing Association",
+    "severe_findings": 7,
+    "severe_pct": "3%",
+    "maladmin_pct": "75%",
+    "determinations": 108,
+    "findings": 254
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Incommunities",
+    "severe_findings": 1,
+    "severe_pct": "3%",
+    "maladmin_pct": "60%",
+    "determinations": 22,
+    "findings": 35
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Islington",
+    "severe_findings": 12,
+    "severe_pct": "6%",
+    "maladmin_pct": "75%",
+    "determinations": 89,
+    "findings": 193
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Jigsaw Homes Group Limited",
+    "severe_findings": 2,
+    "severe_pct": "3%",
+    "maladmin_pct": "55%",
+    "determinations": 26,
+    "findings": 58
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Kirklees Council",
+    "severe_findings": 2,
+    "severe_pct": "4%",
+    "maladmin_pct": "65%",
+    "determinations": 21,
+    "findings": 49
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Lambeth",
+    "severe_findings": 40,
+    "severe_pct": "14%",
+    "maladmin_pct": "92%",
+    "determinations": 121,
+    "findings": 276
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Lewisham",
+    "severe_findings": 31,
+    "severe_pct": "13%",
+    "maladmin_pct": "87%",
+    "determinations": 105,
+    "findings": 248
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Barking and Dagenham",
+    "severe_findings": 7,
+    "severe_pct": "18%",
+    "maladmin_pct": "85%",
+    "determinations": 16,
+    "findings": 40
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Brent",
+    "severe_findings": 3,
+    "severe_pct": "7%",
+    "maladmin_pct": "68%",
+    "determinations": 19,
+    "findings": 44
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Croydon",
+    "severe_findings": 8,
+    "severe_pct": "11%",
+    "maladmin_pct": "88%",
+    "determinations": 24,
+    "findings": 75
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Ealing",
+    "severe_findings": 9,
+    "severe_pct": "15%",
+    "maladmin_pct": "82%",
+    "determinations": 23,
+    "findings": 61
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Enfield",
+    "severe_findings": 2,
+    "severe_pct": "11%",
+    "maladmin_pct": "94%",
+    "determinations": 8,
+    "findings": 18
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Hackney",
+    "severe_findings": 7,
+    "severe_pct": "6%",
+    "maladmin_pct": "75%",
+    "determinations": 55,
+    "findings": 118
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Hillingdon",
+    "severe_findings": 1,
+    "severe_pct": "4%",
+    "maladmin_pct": "89%",
+    "determinations": 15,
+    "findings": 28
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Hounslow",
+    "severe_findings": 2,
+    "severe_pct": "5%",
+    "maladmin_pct": "84%",
+    "determinations": 13,
+    "findings": 38
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Newham",
+    "severe_findings": 2,
+    "severe_pct": "3%",
+    "maladmin_pct": "71%",
+    "determinations": 22,
+    "findings": 63
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Milton Keynes City Council",
+    "severe_findings": 1,
+    "severe_pct": "4%",
+    "maladmin_pct": "84%",
+    "determinations": 11,
+    "findings": 25
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Moat Homes Limited",
+    "severe_findings": 3,
+    "severe_pct": "6%",
+    "maladmin_pct": "74%",
+    "determinations": 18,
+    "findings": 54
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Newcastle City Council",
+    "severe_findings": 2,
+    "severe_pct": "14%",
+    "maladmin_pct": "79%",
+    "determinations": 6,
+    "findings": 14
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "North Tyneside Council",
+    "severe_findings": 1,
+    "severe_pct": "7%",
+    "maladmin_pct": "86%",
+    "determinations": 5,
+    "findings": 14
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Norwich City Council",
+    "severe_findings": 6,
+    "severe_pct": "12%",
+    "maladmin_pct": "83%",
+    "determinations": 23,
+    "findings": 52
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Onward Group",
+    "severe_findings": 3,
+    "severe_pct": "4%",
+    "maladmin_pct": "67%",
+    "determinations": 34,
+    "findings": 70
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Orbit Group",
+    "severe_findings": 9,
+    "severe_pct": "4%",
+    "maladmin_pct": "62%",
+    "determinations": 98,
+    "findings": 234
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Paradigm Housing Group",
+    "severe_findings": 1,
+    "severe_pct": "3%",
+    "maladmin_pct": "57%",
+    "determinations": 12,
+    "findings": 30
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Paragon Asra Housing",
+    "severe_findings": 5,
+    "severe_pct": "3%",
+    "maladmin_pct": "67%",
+    "determinations": 59,
+    "findings": 176
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Platform Housing",
+    "severe_findings": 4,
+    "severe_pct": "4%",
+    "maladmin_pct": "53%",
+    "determinations": 39,
+    "findings": 89
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Poplar Housing And Regeneration Community Association",
+    "severe_findings": 2,
+    "severe_pct": "4%",
+    "maladmin_pct": "65%",
+    "determinations": 15,
+    "findings": 46
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Regenda",
+    "severe_findings": 1,
+    "severe_pct": "3%",
+    "maladmin_pct": "41%",
+    "determinations": 16,
+    "findings": 32
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Royal Borough Of Greenwich",
+    "severe_findings": 2,
+    "severe_pct": "3%",
+    "maladmin_pct": "88%",
+    "determinations": 33,
+    "findings": 80
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Settle Group",
+    "severe_findings": 1,
+    "severe_pct": "5%",
+    "maladmin_pct": "85%",
+    "determinations": 8,
+    "findings": 20
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Sheffield City Council",
+    "severe_findings": 6,
+    "severe_pct": "26%",
+    "maladmin_pct": "83%",
+    "determinations": 11,
+    "findings": 23
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Somerset Council",
+    "severe_findings": 3,
+    "severe_pct": "20%",
+    "maladmin_pct": "67%",
+    "determinations": 7,
+    "findings": 15
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "South Tyneside Council",
+    "severe_findings": 1,
+    "severe_pct": "3%",
+    "maladmin_pct": "61%",
+    "determinations": 18,
+    "findings": 38
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Stonewater Limited",
+    "severe_findings": 1,
+    "severe_pct": "1%",
+    "maladmin_pct": "63%",
+    "determinations": 97,
+    "findings": 193
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Swindon Borough Council",
+    "severe_findings": 2,
+    "severe_pct": "10%",
+    "maladmin_pct": "91%",
+    "determinations": 8,
+    "findings": 21
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Thirteen Housing Group",
+    "severe_findings": 3,
+    "severe_pct": "21%",
+    "maladmin_pct": "57%",
+    "determinations": 9,
+    "findings": 14
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Thurrock Council",
+    "severe_findings": 2,
+    "severe_pct": "6%",
+    "maladmin_pct": "78%",
+    "determinations": 14,
+    "findings": 32
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Together Housing Association",
+    "severe_findings": 3,
+    "severe_pct": "7%",
+    "maladmin_pct": "76%",
+    "determinations": 21,
+    "findings": 46
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Town and Country Housing",
+    "severe_findings": 1,
+    "severe_pct": "2%",
+    "maladmin_pct": "71%",
+    "determinations": 24,
+    "findings": 48
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Walsall Housing Group",
+    "severe_findings": 2,
+    "severe_pct": "8%",
+    "maladmin_pct": "54%",
+    "determinations": 11,
+    "findings": 24
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "London Borough of Wandsworth",
+    "severe_findings": 4,
+    "severe_pct": "7%",
+    "maladmin_pct": "82%",
+    "determinations": 25,
+    "findings": 60
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "West Northamptonshire Council",
+    "severe_findings": 2,
+    "severe_pct": "8%",
+    "maladmin_pct": "63%",
+    "determinations": 10,
+    "findings": 24
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Westminster City Council",
+    "severe_findings": 1,
+    "severe_pct": "1%",
+    "maladmin_pct": "68%",
+    "determinations": 44,
+    "findings": 90
+  },
+  {
+    "category": "10,000 to 49,999 homes",
+    "landlord": "Yorkshire Housing",
+    "severe_findings": 1,
+    "severe_pct": "2%",
+    "maladmin_pct": "60%",
+    "determinations": 23,
+    "findings": 47
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "54North Homes",
+    "severe_findings": 2,
+    "severe_pct": "13%",
+    "maladmin_pct": "75%",
+    "determinations": 5,
+    "findings": 16
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Arun District Council",
+    "severe_findings": 3,
+    "severe_pct": "8%",
+    "maladmin_pct": "73%",
+    "determinations": 13,
+    "findings": 37
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Aspire Housing",
+    "severe_findings": 1,
+    "severe_pct": "10%",
+    "maladmin_pct": "60%",
+    "determinations": 3,
+    "findings": 10
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Bournville Village Trust",
+    "severe_findings": 1,
+    "severe_pct": "17%",
+    "maladmin_pct": "100%",
+    "determinations": 2,
+    "findings": 6
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Canterbury City Council",
+    "severe_findings": 1,
+    "severe_pct": "7%",
+    "maladmin_pct": "80%",
+    "determinations": 4,
+    "findings": 15
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Charnwood Borough Council",
+    "severe_findings": 1,
+    "severe_pct": "11%",
+    "maladmin_pct": "78%",
+    "determinations": 5,
+    "findings": 9
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Cobalt Housing",
+    "severe_findings": 2,
+    "severe_pct": "8%",
+    "maladmin_pct": "58%",
+    "determinations": 10,
+    "findings": 24
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Estuary Housing Association",
+    "severe_findings": 1,
+    "severe_pct": "4%",
+    "maladmin_pct": "91%",
+    "determinations": 13,
+    "findings": 23
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "First Garden Cities Homes",
+    "severe_findings": 1,
+    "severe_pct": "20%",
+    "maladmin_pct": "100%",
+    "determinations": 2,
+    "findings": 5
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Folkestone & Hythe District Council",
+    "severe_findings": 1,
+    "severe_pct": "10%",
+    "maladmin_pct": "90%",
+    "determinations": 5,
+    "findings": 10
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Freebridge Community Housing",
+    "severe_findings": 4,
+    "severe_pct": "18%",
+    "maladmin_pct": "73%",
+    "determinations": 8,
+    "findings": 22
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Great Yarmouth Borough Council",
+    "severe_findings": 2,
+    "severe_pct": "29%",
+    "maladmin_pct": "86%",
+    "determinations": 2,
+    "findings": 7
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Guildford Borough Council",
+    "severe_findings": 2,
+    "severe_pct": "18%",
+    "maladmin_pct": "91%",
+    "determinations": 3,
+    "findings": 11
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Halton Housing",
+    "severe_findings": 1,
+    "severe_pct": "6%",
+    "maladmin_pct": "77%",
+    "determinations": 7,
+    "findings": 17
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Hexagon Housing Association",
+    "severe_findings": 4,
+    "severe_pct": "8%",
+    "maladmin_pct": "73%",
+    "determinations": 17,
+    "findings": 51
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Karibu Community Homes",
+    "severe_findings": 1,
+    "severe_pct": "7%",
+    "maladmin_pct": "93%",
+    "determinations": 6,
+    "findings": 15
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Royal Borough of Kingston Upon Thames",
+    "severe_findings": 2,
+    "severe_pct": "14%",
+    "maladmin_pct": "86%",
+    "determinations": 5,
+    "findings": 14
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Lewes District Council",
+    "severe_findings": 1,
+    "severe_pct": "6%",
+    "maladmin_pct": "88%",
+    "determinations": 6,
+    "findings": 17
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Lincoln City Council",
+    "severe_findings": 1,
+    "severe_pct": "6%",
+    "maladmin_pct": "65%",
+    "determinations": 4,
+    "findings": 17
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "London Borough of Harrow",
+    "severe_findings": 1,
+    "severe_pct": "4%",
+    "maladmin_pct": "79%",
+    "determinations": 14,
+    "findings": 28
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "London Borough of Redbridge",
+    "severe_findings": 3,
+    "severe_pct": "9%",
+    "maladmin_pct": "91%",
+    "determinations": 12,
+    "findings": 32
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Luton Borough Council",
+    "severe_findings": 1,
+    "severe_pct": "5%",
+    "maladmin_pct": "86%",
+    "determinations": 9,
+    "findings": 22
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Magna Housing",
+    "severe_findings": 3,
+    "severe_pct": "9%",
+    "maladmin_pct": "81%",
+    "determinations": 11,
+    "findings": 32
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "MHS Homes",
+    "severe_findings": 1,
+    "severe_pct": "7%",
+    "maladmin_pct": "80%",
+    "determinations": 8,
+    "findings": 15
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Newlon Housing Trust",
+    "severe_findings": 2,
+    "severe_pct": "5%",
+    "maladmin_pct": "68%",
+    "determinations": 20,
+    "findings": 41
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "North West Leicestershire District Council",
+    "severe_findings": 1,
+    "severe_pct": "4%",
+    "maladmin_pct": "78%",
+    "determinations": 13,
+    "findings": 27
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Origin Housing",
+    "severe_findings": 2,
+    "severe_pct": "6%",
+    "maladmin_pct": "74%",
+    "determinations": 13,
+    "findings": 31
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Phoenix Community Housing Association (Bellingham and Downham)",
+    "severe_findings": 2,
+    "severe_pct": "5%",
+    "maladmin_pct": "70%",
+    "determinations": 15,
+    "findings": 43
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Redditch Borough Council",
+    "severe_findings": 3,
+    "severe_pct": "27%",
+    "maladmin_pct": "91%",
+    "determinations": 4,
+    "findings": 11
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Richmond Housing Partnership",
+    "severe_findings": 24,
+    "severe_pct": "12%",
+    "maladmin_pct": "73%",
+    "determinations": 79,
+    "findings": 194
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Rooftop Housing Association",
+    "severe_findings": 4,
+    "severe_pct": "31%",
+    "maladmin_pct": "92%",
+    "determinations": 4,
+    "findings": 13
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Royal Borough of Kensington and Chelsea",
+    "severe_findings": 2,
+    "severe_pct": "5%",
+    "maladmin_pct": "58%",
+    "determinations": 19,
+    "findings": 38
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Slough Borough Council",
+    "severe_findings": 1,
+    "severe_pct": "17%",
+    "maladmin_pct": "83%",
+    "determinations": 3,
+    "findings": 6
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "South Kesteven District Council",
+    "severe_findings": 3,
+    "severe_pct": "27%",
+    "maladmin_pct": "73%",
+    "determinations": 4,
+    "findings": 11
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Southend-on-Sea City Council",
+    "severe_findings": 5,
+    "severe_pct": "15%",
+    "maladmin_pct": "85%",
+    "determinations": 11,
+    "findings": 33
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Southway Housing Trust (Manchester)",
+    "severe_findings": 1,
+    "severe_pct": "4%",
+    "maladmin_pct": "89%",
+    "determinations": 12,
+    "findings": 28
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Sparrow Shared Ownership",
+    "severe_findings": 1,
+    "severe_pct": "3%",
+    "maladmin_pct": "62%",
+    "determinations": 11,
+    "findings": 29
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Stroud District Council",
+    "severe_findings": 1,
+    "severe_pct": "10%",
+    "maladmin_pct": "90%",
+    "determinations": 6,
+    "findings": 10
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Tamworth Borough Council",
+    "severe_findings": 1,
+    "severe_pct": "17%",
+    "maladmin_pct": "100%",
+    "determinations": 4,
+    "findings": 6
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Tower Hamlets Community Housing",
+    "severe_findings": 1,
+    "severe_pct": "4%",
+    "maladmin_pct": "77%",
+    "determinations": 9,
+    "findings": 26
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Waltham Forest Council",
+    "severe_findings": 6,
+    "severe_pct": "7%",
+    "maladmin_pct": "73%",
+    "determinations": 38,
+    "findings": 86
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Wandle Housing Association Limited",
+    "severe_findings": 13,
+    "severe_pct": "9%",
+    "maladmin_pct": "88%",
+    "determinations": 51,
+    "findings": 144
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Warwick District Council",
+    "severe_findings": 1,
+    "severe_pct": "6%",
+    "maladmin_pct": "100%",
+    "determinations": 4,
+    "findings": 16
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Waverley Borough Council",
+    "severe_findings": 2,
+    "severe_pct": "22%",
+    "maladmin_pct": "100%",
+    "determinations": 4,
+    "findings": 9
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Wiltshire Council",
+    "severe_findings": 1,
+    "severe_pct": "8%",
+    "maladmin_pct": "83%",
+    "determinations": 5,
+    "findings": 12
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Winchester City Council",
+    "severe_findings": 1,
+    "severe_pct": "11%",
+    "maladmin_pct": "89%",
+    "determinations": 3,
+    "findings": 9
+  },
+  {
+    "category": "1,000 to 9,999 homes",
+    "landlord": "Wokingham Borough Council",
+    "severe_findings": 1,
+    "severe_pct": "13%",
+    "maladmin_pct": "100%",
+    "determinations": 3,
+    "findings": 8
+  },
+  {
+    "category": "100 to 999 homes",
+    "landlord": "Housing For Women",
+    "severe_findings": 2,
+    "severe_pct": "33%",
+    "maladmin_pct": "67%",
+    "determinations": 3,
+    "findings": 6
+  },
+  {
+    "category": "100 to 999 homes",
+    "landlord": "Soho Housing Association",
+    "severe_findings": 9,
+    "severe_pct": "36%",
+    "maladmin_pct": "92%",
+    "determinations": 7,
+    "findings": 25
+  }
+]
