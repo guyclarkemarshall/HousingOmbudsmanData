@@ -14,173 +14,25 @@ import datetime
 # Set standard output to UTF-8 to prevent console encoding exceptions
 sys.stdout.reconfigure(encoding='utf-8')
 
+from section_splitter import canonical_landlord_name
+
 DB_PATH = "ombudsman_complaints_findings.db"
 OFFICIAL_DATA_JSON = "official_severe_findings.json"
 REPORT_PATH = "official_comparison_report.md"
-
-# Date parsing helper
-MONTHS = {
-    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
-    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12
-}
-
-def parse_date(d_str):
-    if not d_str:
-        return None
-    d_str = d_str.strip().lower()
-    m = re.match(r'(\d+)\s+([a-z]+)\s+(\d{4})', d_str)
-    if m:
-        day = int(m.group(1))
-        month_str = m.group(2)
-        year = int(m.group(3))
-        month = MONTHS.get(month_str)
-        if month:
-            try:
-                return datetime.date(year, month, day)
-            except ValueError:
-                pass
-    return None
+OFFICIAL_TOTAL_DETERMINATIONS_2024_25 = 7082
 
 def canonical_key(name):
-    if not name:
-        return ""
-    name = name.lower()
-    
-    # Check key phrases/substrings first
-    mappings = {
-        "lambeth": "london borough of lambeth",
-        "l&q": "london & quadrant housing trust (l&q)",
-        "london & quadrant": "london & quadrant housing trust (l&q)",
-        "london and quadrant": "london & quadrant housing trust (l&q)",
-        "peabody": "peabody trust",
-        "clarion": "clarion housing association",
-        "birmingham": "birmingham city council",
-        "sovereign": "sovereign network group",
-        "accent": "accent group",
-        "aster": "aster group",
-        "bromford": "bromford housing association",
-        "connexus": "connexus housing",
-        "curo": "curo places",
-        "east midlands": "east midlands housing group",
-        "emh group": "east midlands housing group",
-        "forhousing": "forhousing",
-        "greensquareaccord": "greensquareaccord",
-        "abri": "abri group",
-        "lewisham": "london borough of lewisham",
-        "haringey": "haringey london borough council",
-        "southern housing": "southern housing",
-        "southwark": "southwark council",
-        "notting hill genesis": "notting hill genesis (nhg)",
-        "nhg": "notting hill genesis (nhg)",
-        "sanctuary": "sanctuary housing association",
-        "guinness": "the guinness partnership",
-        "riverside": "the riverside group",
-        "a2dominion": "a2dominion housing group",
-        "a2 dominion": "a2dominion housing group",
-        "hammersmith": "london borough of hammersmith and fulham",
-        "havering": "london borough of havering council",
-        "hyde housing": "hyde housing association",
-        "incommunities": "incommunities",
-        "islington": "london borough of islington",
-        "jigsaw": "jigsaw homes group limited",
-        "kirklees": "kirklees council",
-        "barking and dagenham": "london borough of barking and dagenham",
-        "brent": "london borough of brent",
-        "croydon": "london borough of croydon",
-        "ealing": "london borough of ealing",
-        "enfield": "london borough of enfield",
-        "hackney": "london borough of hackney",
-        "hillingdon": "london borough of hillingdon",
-        "hounslow": "london borough of hounslow",
-        "newham": "london borough of newham",
-        "milton keynes": "milton keynes city council",
-        "moat homes": "moat homes limited",
-        "newcastle": "newcastle city council",
-        "north tyneside": "north tyneside council",
-        "norwich": "norwich city council",
-        "onward": "onward group",
-        "orbit": "orbit group",
-        "paradigm": "paradigm housing group",
-        "home group": "home group",
-        "places for people": "places for people homes",
-        "sparrow": "sparrow shared ownership",
-        "housing for women": "housing for women",
-        "soho": "soho housing association"
-    }
-    
-    for k, v in mappings.items():
-        if k in name:
-            return v
-            
-    # Generic cleanup
-    clean = name
-    clean = re.sub(r'\b(housing association|housing group|housing trust|group|limited|ltd|council|borough council|city council|district council|london borough of|london borough council|london borough|trust|homes)\b', '', clean)
-    clean = re.sub(r'[\(\)\-\,\.\']', '', clean)
-    clean = re.sub(r'\s+', ' ', clean).strip()
-    return clean
-
-# Cased display names for report
-DISPLAY_NAMES = {
-    "london borough of lambeth": "London Borough of Lambeth",
-    "london & quadrant housing trust (l&q)": "London & Quadrant Housing Trust (L&Q)",
-    "peabody trust": "Peabody Trust",
-    "clarion housing association": "Clarion Housing Association",
-    "birmingham city council": "Birmingham City Council",
-    "sovereign network group": "Sovereign Network Group",
-    "accent group": "Accent Group",
-    "aster group": "Aster Group",
-    "bromford housing association": "Bromford Housing Association",
-    "connexus housing": "Connexus Housing",
-    "curo places": "Curo Places",
-    "east midlands housing group": "East Midlands Housing Group",
-    "forhousing": "ForHousing",
-    "greensquareaccord": "GreenSquareAccord",
-    "abri group": "Abri Group",
-    "london borough of lewisham": "London Borough of Lewisham",
-    "haringey london borough council": "Haringey London Borough Council",
-    "southern housing": "Southern Housing",
-    "southwark council": "Southwark Council",
-    "notting hill genesis (nhg)": "Notting Hill Genesis (NHG)",
-    "sanctuary housing association": "Sanctuary Housing Association",
-    "the guinness partnership": "The Guinness Partnership",
-    "the riverside group": "The Riverside Group",
-    "a2dominion housing group": "A2Dominion Housing Group",
-    "london borough of hammersmith and fulham": "London Borough of Hammersmith and Fulham",
-    "london borough of havering council": "London Borough of Havering Council",
-    "hyde housing association": "Hyde Housing Association",
-    "incommunities": "Incommunities",
-    "london borough of islington": "London Borough of Islington",
-    "jigsaw homes group limited": "Jigsaw Homes Group Limited",
-    "kirklees council": "Kirklees Council",
-    "london borough of barking and dagenham": "London Borough of Barking and Dagenham",
-    "london borough of brent": "London Borough of Brent",
-    "london borough of croydon": "London Borough of Croydon",
-    "london borough of ealing": "London Borough of Ealing",
-    "london borough of enfield": "London Borough of Enfield",
-    "london borough of hackney": "London Borough of Hackney",
-    "london borough of hillingdon": "London Borough of Hillingdon",
-    "london borough of hounslow": "London Borough of Hounslow",
-    "london borough of newham": "London Borough of Newham",
-    "milton keynes city council": "Milton Keynes City Council",
-    "moat homes limited": "Moat Homes Limited",
-    "newcastle city council": "Newcastle City Council",
-    "north tyneside council": "North Tyneside Council",
-    "norwich city council": "Norwich City Council",
-    "onward group": "Onward Group",
-    "orbit group": "Orbit Group",
-    "paradigm housing group": "Paradigm Housing Group",
-    "home group": "Home Group",
-    "places for people homes": "Places for People Homes",
-    "sparrow shared ownership": "Sparrow Shared Ownership",
-    "housing for women": "Housing For Women",
-    "soho housing association": "Soho Housing Association"
-}
+    return canonical_landlord_name(name).lower()
 
 def get_display_name(canonical):
-    return DISPLAY_NAMES.get(canonical, canonical.title())
+    return canonical.title()
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Verify against official publications.")
+    parser.add_argument("--output-dir", type=str, default=".", help="Directory to save the markdown report")
+    args = parser.parse_args()
+
     if not os.path.exists(DB_PATH):
         print(f"Error: Compiled database {DB_PATH} not found!")
         sys.exit(1)
@@ -199,18 +51,17 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    cursor.execute("SELECT landlord, finding, decision_date, case_id FROM complaint_findings")
+    cursor.execute("SELECT landlord, finding, decision_date_iso, case_id FROM complaint_findings")
     db_rows = cursor.fetchall()
     
-    start_date = datetime.date(2024, 4, 1)
-    end_date = datetime.date(2025, 3, 31)
+    start_date_iso = "2024-04-01"
+    end_date_iso = "2025-03-31"
     
     # Aggregate database statistics by landlord
     db_stats = {} # canonical_name -> {"severe": 0, "findings": 0, "cases": set()}
     
-    for landlord, finding, d_str, case_id in db_rows:
-        dt = parse_date(d_str)
-        if not dt or not (start_date <= dt <= end_date):
+    for landlord, finding, d_iso, case_id in db_rows:
+        if not d_iso or not (start_date_iso <= d_iso <= end_date_iso):
             continue
             
         canonical_name = canonical_key(landlord)
@@ -290,7 +141,7 @@ def main():
     print(f"Our Compiled Database (2024-25 Fiscal Year, Absolute Totals):")
     print(f"  - Total Unique Landlords : {len(db_stats)}")
     print(f"  - Total Severe Findings  : {total_db_absolute_severe} ({total_db_absolute_severe / total_off_severe * 100.0:.1f}% of official report total)")
-    print(f"  - Total Determinations   : {num_db_absolute_determinations} (Compared to {7082} total determinations made by Ombudsman in 2024-25 - a {num_db_absolute_determinations/7082*100.1:.1f}% sample)")
+    print(f"  - Total Determinations   : {num_db_absolute_determinations} (Compared to {OFFICIAL_TOTAL_DETERMINATIONS_2024_25} total determinations made by Ombudsman in 2024-25 - a {num_db_absolute_determinations/OFFICIAL_TOTAL_DETERMINATIONS_2024_25*100.0:.1f}% sample)")
     print(f"  - Total Findings         : {total_db_absolute_findings}")
     
     print(f"\nMatched {len(comparison_results)} out of {len(official_list)} official landlords.")
@@ -300,8 +151,7 @@ def main():
         
     # Write a detailed markdown report
     # Determine the directory path
-    app_data_dir = r"C:\Users\GuyMarshall\.gemini\antigravity-ide\brain\a74f9f03-9aa0-4904-a354-0946868d5d3e"
-    report_file_path = os.path.join(app_data_dir, REPORT_PATH)
+    report_file_path = os.path.join(args.output_dir, REPORT_PATH)
     
     with open(report_file_path, "w", encoding="utf-8") as f:
         f.write("# Official Publication Checksum Report (2024-25)\n\n")
@@ -312,11 +162,11 @@ def main():
         f.write("| :--- | :---: | :---: | :---: |\n")
         f.write(f"| **Landlords Listed** | {len(official_list)} | {len(db_stats)} | N/A |\n")
         f.write(f"| **Severe Maladministration Findings** | {total_off_severe} | {total_db_absolute_severe} | {total_db_absolute_severe/total_off_severe*100.0:.1f}% |\n")
-        f.write(f"| **Total Determinations** | {total_off_determinations} (for subset) | {num_db_absolute_determinations} (absolute total) | {num_db_absolute_determinations/7082*100.0:.1f}% (of Ombudsman total 7,082) |\n")
+        f.write(f"| **Total Determinations** | {total_off_determinations} (for subset) | {num_db_absolute_determinations} (absolute total) | {num_db_absolute_determinations/OFFICIAL_TOTAL_DETERMINATIONS_2024_25*100.0:.1f}% (of Ombudsman total {OFFICIAL_TOTAL_DETERMINATIONS_2024_25:,}) |\n")
         f.write(f"| **Total Findings** | {total_off_findings} (for subset) | {total_db_absolute_findings} (absolute total) | N/A |\n\n")
         
         f.write("> [!NOTE]\n")
-        f.write("> **Under-representation Explanation:** The compiled database contains a subset of decisions published on the Housing Ombudsman website. The Ombudsman officially made **7,082 determinations** in 2024-25. Our database has **3,934 determinations** for this period, representing a **55.5% representative sample** of the Ombudsman's total caseload. Consequently, our findings and severe maladministration counts are systematically lower (approx. 55-60% of official values).\n\n")
+        f.write(f"> **Under-representation Explanation:** The compiled database contains a subset of decisions published on the Housing Ombudsman website. The Ombudsman officially made **{OFFICIAL_TOTAL_DETERMINATIONS_2024_25:,} determinations** in 2024-25. Our database has **{num_db_absolute_determinations} determinations** for this period, representing a **{num_db_absolute_determinations/OFFICIAL_TOTAL_DETERMINATIONS_2024_25*100.0:.1f}% representative sample** of the Ombudsman's total caseload. Consequently, our findings and severe maladministration counts are systematically lower (approx. 55-60% of official values).\n\n")
         
         f.write("## 2. Landlord-by-Landlord Comparison\n\n")
         f.write("Below is a detailed breakdown of the top 30 landlords listed in the official report compared to our database extractions for 2024-25:\n\n")

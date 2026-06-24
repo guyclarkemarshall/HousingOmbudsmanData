@@ -5,13 +5,14 @@ Simple script to verify the contents of the SQLite decisions database.
 
 import sqlite3
 import os
+import sys
 
 DB_NAME = "ombudsman_decisions.db"
 
 def verify_database():
     if not os.path.exists(DB_NAME):
         print(f"Error: Database {DB_NAME} not found!")
-        return
+        return False
         
     print(f"Connecting to database: {DB_NAME}")
     conn = sqlite3.connect(DB_NAME)
@@ -32,7 +33,7 @@ def verify_database():
     if count == 0:
         print("No records found in database.")
         conn.close()
-        return
+        return False
         
     # Query sample rows
     cursor.execute("""
@@ -77,9 +78,11 @@ def verify_database():
     print(f"Records with very short or missing full text (< 100 chars): {short_texts}")
     
     conn.close()
+    return True
 
 def main():
-    verify_database()
+    success = verify_database()
+    sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
     main()

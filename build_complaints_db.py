@@ -13,7 +13,10 @@ import sqlite3
 import csv
 
 # Import helper functions from project files
-from section_splitter import split_sections
+from section_splitter import (
+    split_sections, NORMALIZED_OUTCOMES, parse_case_id, extract_pairs,
+    canonical_landlord_name, clean_date_to_iso, LANDLORD_STOCK_SIZES,
+)
 from build_insights_db import extract_landlord_type, classify_category, parse_determinations
 
 # Set standard output to UTF-8 to prevent console encoding exceptions
@@ -22,77 +25,6 @@ sys.stdout.reconfigure(encoding='utf-8')
 SRC_DB = "ombudsman_decisions.db"
 DEST_DB = "ombudsman_complaints_findings.db"
 DEST_CSV = "ombudsman_complaints_findings.csv"
-
-# Valid finding outcomes and their normalized casings
-NORMALIZED_OUTCOMES = {
-    'no maladministration': 'No Maladministration',
-    'service failure': 'Service Failure',
-    'maladministration': 'Maladministration',
-    'severe maladministration': 'Severe Maladministration',
-    'reasonable redress': 'Reasonable Redress',
-    'outside jurisdiction': 'Outside Jurisdiction',
-    'choose an item.': 'Choose an item.'
-}
-
-def parse_case_id(title, url):
-    """Extracts a unique case ID from the title or URL."""
-    # Try looking in title (usually e.g. "Housing Trust (202347433)")
-    match = re.search(r'\((\d{7,9})\)', title)
-    if match:
-        return match.group(1)
-        
-    # Fallback to URL (usually ends with landlord-name-caseid/)
-    match = re.search(r'-(\d{7,9})/?$', url)
-    if match:
-        return match.group(1)
-        
-    # Generates a pseudo-id if none found
-    import hashlib
-    return "pseudo_" + hashlib.md5(url.encode()).hexdigest()[:8]
-
-def extract_pairs(text):
-    """Parses text line-by-line to extract complaint and finding pairs."""
-    if not text:
-        return []
-        
-    text = text.replace('\r\n', '\n')
-    lines = text.split('\n')
-    
-    pairs = []
-    i = 0
-    n = len(lines)
-    
-    while i < n:
-        line = lines[i].strip()
-        if line.lower() == 'complaint':
-            complaint_lines = []
-            j = i + 1
-            found_finding = False
-            
-            while j < n:
-                next_line = lines[j].strip()
-                if next_line.lower() == 'complaint':
-                    # Hit another Complaint header without finding a Finding block first
-                    break
-                if next_line.lower() == 'finding':
-                    found_finding = True
-                    break
-                complaint_lines.append(next_line)
-                j += 1
-            
-            if found_finding and j + 1 < n:
-                outcome = lines[j+1].strip()
-                outcome_clean = outcome.rstrip('.').strip()
-                outcome_lower = outcome_clean.lower()
-                if outcome_lower in NORMALIZED_OUTCOMES:
-                    complaint_desc = " ".join(" ".join(complaint_lines).split()).strip()
-                    normalized_outcome = NORMALIZED_OUTCOMES[outcome_lower]
-                    pairs.append((complaint_desc, normalized_outcome))
-                    i = j + 2
-                    continue
-        i += 1
-        
-    return pairs
 
 def init_dest_db(db_path):
     """Initializes the single-table database schema."""
@@ -110,13 +42,16 @@ def init_dest_db(db_path):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             case_id TEXT NOT NULL,
             landlord TEXT,
-            landlord_id INTEGER,
+            landlord_seq INTEGER,
             landlord_type TEXT,
             decision_date TEXT,
+            decision_date_iso TEXT,
+            amended_at_review INTEGER,
             category TEXT NOT NULL,
             complaint TEXT NOT NULL,
             finding TEXT NOT NULL,
             extracted_from TEXT NOT NULL,
+            stock_size INTEGER,
             decision_id INTEGER NOT NULL
         )
     """)
@@ -140,7 +75,7 @@ def export_to_csv():
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT id, case_id, landlord, landlord_id, landlord_type, decision_date, category, complaint, finding, extracted_from, decision_id
+        SELECT id, case_id, landlord, landlord_seq, landlord_type, decision_date, decision_date_iso, amended_at_review, category, complaint, finding, extracted_from, stock_size, decision_id
         FROM complaint_findings
     """)
     rows = cursor.fetchall()
@@ -149,13 +84,16 @@ def export_to_csv():
         "Record ID",
         "Case ID",
         "Landlord Name",
-        "Landlord ID",
+        "Landlord Sequence",
         "Landlord Type",
         "Decision Date",
+        "Decision Date ISO",
+        "Amended at Review",
         "Category",
         "Complaint Description",
         "Finding Outcome",
         "Extracted From",
+        "Landlord Stock Size",
         "Source Decision ID"
     ]
     
@@ -186,23 +124,53 @@ def build_database():
     total_docs = len(rows)
     print(f"Loaded {total_docs} cases from source database. Extracting pairs and metadata...")
     
-    landlord_cache = {}  # landlord_name -> landlord_id
+    # Pre-scan landlord types and names to backfill and collapse variants
+    print("Pre-scanning decisions to build landlord type mapping...")
+    landlord_type_map = {}
+    for _, _, _, _, landlord_name, full_text in rows:
+        landlord_clean = canonical_landlord_name(landlord_name)
+        if landlord_clean not in landlord_type_map or not landlord_type_map[landlord_clean]:
+            sections = split_sections(full_text)
+            ltype = extract_landlord_type(sections)
+            if ltype:
+                ltype_clean = ltype.strip()
+                if ltype_clean.lower() in ('housing association', 'housing association.'):
+                    ltype_clean = 'Housing Association'
+                elif ltype_clean.lower() in ('local authority', 'local authority.'):
+                    ltype_clean = 'Local Authority'
+                elif ltype_clean.lower() in ('local authority / almo or tmo', 'local authority / almo or tmo.'):
+                    ltype_clean = 'Local Authority / ALMO or TMO'
+                landlord_type_map[landlord_clean] = ltype_clean
+                
+    # Fallback heuristics for landlords with missing types
+    for landlord in set(canonical_landlord_name(r[4]) for r in rows):
+        if landlord not in landlord_type_map or not landlord_type_map[landlord]:
+            landlord_lower = landlord.lower()
+            if any(x in landlord_lower for x in ('council', 'borough of', 'city of', 'corporation of', 'district', 'authority')):
+                landlord_type_map[landlord] = 'Local Authority'
+            elif any(x in landlord_lower for x in ('association', 'trust', 'homes', 'peabody', 'clarion', 'sanctuary', 'guinness', 'riverside', 'l&q', 'group', 'society')):
+                landlord_type_map[landlord] = 'Housing Association'
+            else:
+                landlord_type_map[landlord] = 'Unknown'
+
+    landlord_cache = {}  # landlord_name -> landlord_seq
     inserted_count = 0
     cases_with_pairs = 0
     
     for idx, row in enumerate(rows, 1):
         doc_id, url, title, decision_date, landlord_name, full_text = row
         case_id = parse_case_id(title, url)
+        date_iso, amended = clean_date_to_iso(decision_date)
         
-        # Standardize landlord
-        landlord_clean = landlord_name.strip() if landlord_name else "Unknown Landlord"
+        # Standardize landlord name
+        landlord_clean = canonical_landlord_name(landlord_name)
         if landlord_clean not in landlord_cache:
             landlord_cache[landlord_clean] = len(landlord_cache) + 1
-        landlord_id = landlord_cache[landlord_clean]
+        landlord_seq = landlord_cache[landlord_clean]
+        stock_size = LANDLORD_STOCK_SIZES.get(landlord_clean)
         
-        # Extract landlord type by splitting sections
-        sections = split_sections(full_text)
-        landlord_type = extract_landlord_type(sections)
+        # Backfill landlord type
+        landlord_type = landlord_type_map.get(landlord_clean, "Unknown")
         
         # Try table extraction first
         pairs = extract_pairs(full_text)
@@ -217,20 +185,39 @@ def build_database():
                 
         if pairs:
             cases_with_pairs += 1
+            deduped_findings = []
+            ch_findings = []
+            
+            outcome_priority = {
+                'Severe Maladministration': 6,
+                'Maladministration': 5,
+                'Service Failure': 4,
+                'Reasonable Redress': 3,
+                'No Maladministration': 2,
+                'Outside Jurisdiction': 1,
+            }
+            
             for comp, find in pairs:
-                # Classify the category of the complaint
                 category = classify_category(comp)
-                
-                # Double check finding normalization
                 find_lower = find.lower()
                 normalized_find = NORMALIZED_OUTCOMES.get(find_lower, find)
                 
+                if category == "Complaint Handling":
+                    ch_findings.append((comp, normalized_find, category))
+                else:
+                    deduped_findings.append((comp, normalized_find, category))
+            
+            if ch_findings:
+                best_ch = max(ch_findings, key=lambda x: outcome_priority.get(x[1], 0))
+                deduped_findings.append(best_ch)
+                
+            for comp, normalized_find, category in deduped_findings:
                 dest_cursor.execute("""
                     INSERT INTO complaint_findings (
-                        case_id, landlord, landlord_id, landlord_type, decision_date, category, complaint, finding, extracted_from, decision_id
+                        case_id, landlord, landlord_seq, landlord_type, decision_date, decision_date_iso, amended_at_review, category, complaint, finding, extracted_from, stock_size, decision_id
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (case_id, landlord_clean, landlord_id, landlord_type, decision_date, category, comp, normalized_find, extracted_from, doc_id))
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (case_id, landlord_clean, landlord_seq, landlord_type, decision_date, date_iso, amended, category, comp, normalized_find, extracted_from, stock_size, doc_id))
                 inserted_count += 1
                 
         if idx % 2000 == 0 or idx == total_docs:

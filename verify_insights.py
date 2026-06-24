@@ -6,12 +6,17 @@ Verifies and queries statistical summaries of the compiled ombudsman_insights.db
 
 import sqlite3
 import sys
+import os
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 DB_NAME = "ombudsman_insights.db"
 
 def verify_insights_db(db_path=DB_NAME):
+    if not os.path.exists(db_path):
+        print(f"Error: Database {db_path} not found!")
+        return False
+        
     print(f"Connecting to database: {db_path}\n")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -34,6 +39,11 @@ def verify_insights_db(db_path=DB_NAME):
     print(f"Cases count              : {cases_count}")
     print(f"Issues count             : {issues_count}")
     print(f"Compensation orders count: {comp_count}")
+    
+    if landlords_count == 0 or cases_count == 0 or issues_count == 0:
+        print("Error: Database tables are empty!")
+        conn.close()
+        return False
     
     # 2. Issues distributions
     print("\n=== ISSUE CATEGORY DISTRIBUTION ===")
@@ -218,9 +228,11 @@ def verify_insights_db(db_path=DB_NAME):
         print(f"  - {statute:<55}: {cnt:>5} ({pct:>5.1f}% of cases)")
 
     conn.close()
+    return True
 
 def main():
-    verify_insights_db()
+    success = verify_insights_db()
+    sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
     main()

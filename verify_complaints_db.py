@@ -18,7 +18,7 @@ CSV_NAME = "ombudsman_complaints_findings.csv"
 def verify_database():
     if not os.path.exists(DB_NAME):
         print(f"Error: Database {DB_NAME} not found!")
-        return
+        return False
         
     print(f"Connecting to database: {DB_NAME}\n")
     conn = sqlite3.connect(DB_NAME)
@@ -38,7 +38,7 @@ def verify_database():
     if total_records == 0:
         print("No records found in database.")
         conn.close()
-        return
+        return False
         
     # 2. Extracted From distribution
     print("\n=== EXTRACTION SOURCE DISTRIBUTION ===")
@@ -88,7 +88,7 @@ def verify_database():
     # 6. Sample records from TABLE extraction
     print("\n=== SAMPLE TABLE EXTRACTIONS ===")
     cursor.execute("""
-        SELECT id, case_id, landlord, landlord_id, landlord_type, decision_date, category, complaint, finding, extracted_from, decision_id
+        SELECT id, case_id, landlord, landlord_seq, landlord_type, decision_date, decision_date_iso, amended_at_review, category, complaint, finding, extracted_from, stock_size, decision_id
         FROM complaint_findings
         WHERE extracted_from = 'table'
         LIMIT 3
@@ -99,19 +99,22 @@ def verify_database():
         print(f"Record ID     : {row[0]}")
         print(f"Case ID       : {row[1]}")
         print(f"Landlord Name : {row[2]}")
-        print(f"Landlord ID   : {row[3]}")
+        print(f"Landlord Seq  : {row[3]}")
         print(f"Landlord Type : {row[4]}")
         print(f"Decision Date : {row[5]}")
-        print(f"Category      : {row[6]}")
-        print(f"Complaint     : {row[7]}")
-        print(f"Finding       : {row[8]}")
-        print(f"Source        : {row[9]}")
-        print(f"Decision ID   : {row[10]}")
+        print(f"Decision ISO  : {row[6]}")
+        print(f"Amended       : {row[7]}")
+        print(f"Category      : {row[8]}")
+        print(f"Complaint     : {row[9]}")
+        print(f"Finding       : {row[10]}")
+        print(f"Source        : {row[11]}")
+        print(f"Stock Size    : {row[12]}")
+        print(f"Decision ID   : {row[13]}")
         
     # 7. Sample records from TEXT extraction
     print("\n=== SAMPLE TEXT EXTRACTIONS ===")
     cursor.execute("""
-        SELECT id, case_id, landlord, landlord_id, landlord_type, decision_date, category, complaint, finding, extracted_from, decision_id
+        SELECT id, case_id, landlord, landlord_seq, landlord_type, decision_date, decision_date_iso, amended_at_review, category, complaint, finding, extracted_from, stock_size, decision_id
         FROM complaint_findings
         WHERE extracted_from = 'text'
         LIMIT 3
@@ -122,14 +125,17 @@ def verify_database():
         print(f"Record ID     : {row[0]}")
         print(f"Case ID       : {row[1]}")
         print(f"Landlord Name : {row[2]}")
-        print(f"Landlord ID   : {row[3]}")
+        print(f"Landlord Seq  : {row[3]}")
         print(f"Landlord Type : {row[4]}")
         print(f"Decision Date : {row[5]}")
-        print(f"Category      : {row[6]}")
-        print(f"Complaint     : {row[7]}")
-        print(f"Finding       : {row[8]}")
-        print(f"Source        : {row[9]}")
-        print(f"Decision ID   : {row[10]}")
+        print(f"Decision ISO  : {row[6]}")
+        print(f"Amended       : {row[7]}")
+        print(f"Category      : {row[8]}")
+        print(f"Complaint     : {row[9]}")
+        print(f"Finding       : {row[10]}")
+        print(f"Source        : {row[11]}")
+        print(f"Stock Size    : {row[12]}")
+        print(f"Decision ID   : {row[13]}")
         
     conn.close()
     
@@ -137,15 +143,27 @@ def verify_database():
     print("\n=== CSV EXPORT FILE VALIDATION ===")
     if not os.path.exists(CSV_NAME):
         print(f"Error: Exported CSV file '{CSV_NAME}' not found!")
+        return False
     else:
         print(f"CSV file '{CSV_NAME}' found.")
         with open(CSV_NAME, mode='r', encoding='utf-8-sig') as f:
             reader = csv.reader(f)
             csv_rows = list(reader)
-            print(f"Total rows in CSV (including header): {len(csv_rows)}")
-            if len(csv_rows) > 1:
+            csv_count = len(csv_rows)
+            print(f"Total rows in CSV (including header): {csv_count}")
+            if csv_count > 1:
                 print("Header row      :", csv_rows[0])
                 print("First data row  :", csv_rows[1])
+            
+            if csv_count != total_records + 1:
+                print(f"Error: Row count mismatch between database ({total_records}) and CSV ({csv_count - 1})!")
+                return False
+                
+    return True
+
+def main():
+    success = verify_database()
+    sys.exit(0 if success else 1)
 
 if __name__ == '__main__':
-    verify_database()
+    main()

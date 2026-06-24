@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["scraper", "build_insights_db", "section_splitter", "verify_db", "verify_insights"]
+py-modules = ["scraper", "build_insights_db", "section_splitter", "verify_db", "verify_insights", "build_complaints_db", "verify_complaints_db", "verify_against_official"]
 
 [dependency-groups]
 dev = [
@@ -21,3 +21,6 @@ scrape = "scraper:main"
 build-insights = "build_insights_db:main"
 verify-decisions = "verify_db:main"
 verify-insights = "verify_insights:main"
+build-complaints = "build_complaints_db:build_database"
+verify-complaints = "verify_complaints_db:main"
+verify-official = "verify_against_official:main"

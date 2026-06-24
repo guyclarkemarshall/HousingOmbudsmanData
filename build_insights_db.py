@@ -8,62 +8,14 @@ import os
 import re
 import sys
 import sqlite3
+import hashlib
 
-from section_splitter import detect_format, split_sections, extract_complaint_finding_pairs
+from section_splitter import (
+    detect_format, split_sections, extract_complaint_finding_pairs,
+    NORMALIZED_OUTCOMES, parse_case_id, extract_pairs,
+    canonical_landlord_name, clean_date_to_iso, LANDLORD_STOCK_SIZES,
+)
 
-# Valid finding outcomes and their normalized casings
-NORMALIZED_OUTCOMES = {
-    'no maladministration': 'No Maladministration',
-    'service failure': 'Service Failure',
-    'maladministration': 'Maladministration',
-    'severe maladministration': 'Severe Maladministration',
-    'reasonable redress': 'Reasonable Redress',
-    'outside jurisdiction': 'Outside Jurisdiction',
-    'choose an item.': 'Choose an item.'
-}
-
-def extract_pairs(text):
-    """Parses text line-by-line to extract complaint and finding pairs."""
-    if not text:
-        return []
-        
-    text = text.replace('\r\n', '\n')
-    lines = text.split('\n')
-    
-    pairs = []
-    i = 0
-    n = len(lines)
-    
-    while i < n:
-        line = lines[i].strip()
-        if line.lower() == 'complaint':
-            complaint_lines = []
-            j = i + 1
-            found_finding = False
-            
-            while j < n:
-                next_line = lines[j].strip()
-                if next_line.lower() == 'complaint':
-                    break
-                if next_line.lower() == 'finding':
-                    found_finding = True
-                    break
-                complaint_lines.append(next_line)
-                j += 1
-            
-            if found_finding and j + 1 < n:
-                outcome = lines[j+1].strip()
-                outcome_clean = outcome.rstrip('.').strip()
-                outcome_lower = outcome_clean.lower()
-                if outcome_lower in NORMALIZED_OUTCOMES:
-                    complaint_desc = " ".join(" ".join(complaint_lines).split()).strip()
-                    normalized_outcome = NORMALIZED_OUTCOMES[outcome_lower]
-                    pairs.append((complaint_desc, normalized_outcome))
-                    i = j + 2
-                    continue
-        i += 1
-        
-    return pairs
 
 
 # Config
@@ -99,7 +51,8 @@ def init_dest_db(db_path):
     cursor.execute("""
         CREATE TABLE landlords (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL
+            name TEXT UNIQUE NOT NULL,
+            stock_size INTEGER
         )
     """)
     
@@ -111,6 +64,8 @@ def init_dest_db(db_path):
             url TEXT,
             title TEXT,
             decision_date TEXT,
+            decision_date_iso TEXT,
+            amended_at_review INTEGER DEFAULT 0,
             landlord_id INTEGER,
             total_compensation_ordered REAL DEFAULT 0.0,
             stage_1_days_est INTEGER,
@@ -180,21 +135,6 @@ def init_dest_db(db_path):
     conn.commit()
     conn.close()
 
-def parse_case_id(title, url):
-    """Extracts a unique case ID from the title or URL."""
-    # Try looking in title (usually e.g. "Housing Trust (202347433)")
-    match = re.search(r'\((\d{7,9})\)', title)
-    if match:
-        return match.group(1)
-        
-    # Fallback to URL (usually ends with landlord-name-caseid/)
-    match = re.search(r'-(\d{7,9})/?$', url)
-    if match:
-        return match.group(1)
-        
-    # Generates a pseudo-id if none found
-    import hashlib
-    return "pseudo_" + hashlib.md5(url.encode()).hexdigest()[:8]
 
 UPHELD_DETERMINATIONS = {'Severe Maladministration', 'Maladministration', 'Service Failure'}
 
@@ -222,7 +162,30 @@ def parse_determinations(text):
     else:
         section_text = det_match.group(2).strip()
         
-    sentences = re.split(r'\.\s*(?=[A-Z])', section_text)
+    # Fast standard sentence split followed by abbreviation-merging
+    raw_sentences = re.split(r'\.\s*(?=[A-Z])', section_text)
+    sentences = []
+    abbreviations = {
+        'mr', 'mrs', 'ms', 'dr', 'st', 'co', 'ltd', 'no', 'e.g', 'i.e', 'vol', 'ed',
+        'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+    }
+    
+    temp = ""
+    for s in raw_sentences:
+        if temp:
+            temp += ". " + s
+        else:
+            temp = s
+            
+        words = temp.split()
+        if words:
+            last_word = words[-1].rstrip('.').lower()
+            if last_word in abbreviations:
+                continue
+        sentences.append(temp)
+        temp = ""
+    if temp:
+        sentences.append(temp)
     results = []
     
     for sentence in sentences:
@@ -252,23 +215,23 @@ def classify_category(desc):
     Ordered most-specific first so 'Complaint Handling' only fires as residual."""
     desc_lower = desc.lower()
 
-    if re.search(r'\b(damp|mould|condensation)\b', desc_lower):
+    if re.search(r'\b(damp|mould|condensation)s?\b', desc_lower):
         return "Damp & Mould"
-    elif re.search(r'\b(infestation|pest|mice|rats|bugs|cockroaches|wasps|fleas)\b', desc_lower):
+    elif re.search(r'\b(infestation|pest|mice|rat|bug|cockroach|wasp|flea)s?\b', desc_lower):
         return "Pest Control"
-    elif re.search(r'\b(leak|water|flood|burst|ingress|piping)\b', desc_lower):
+    elif re.search(r'\b(leak|water|flood|burst|ingress|piping)s?\b', desc_lower):
         return "Leaks & Water Ingress"
-    elif re.search(r'\b(noise|antisocial|asb|anti-social|harassment|nuisance)\b', desc_lower):
+    elif re.search(r'\b(noise|antisocial|asb|anti\-social|harassment|nuisance)s?\b', desc_lower):
         return "Anti-Social Behaviour (ASB)"
-    elif re.search(r'\b(rent|service charge|billing|arrears)\b', desc_lower):
+    elif re.search(r'\b(rent|service charge|billing|arrear)s?\b', desc_lower):
         return "Rent & Service Charges"
-    elif re.search(r'\b(communal|estate management|garden|cleaning|refuse|bin|parking)\b', desc_lower):
+    elif re.search(r'\b(communal|estate management|garden|cleaning|refuse|bin|parking)s?\b', desc_lower):
         return "Estate Management"
-    elif re.search(r'\b(repair|maintenance|window|roof|boiler|heating|hot water|door|lift|gutter|structure)\b', desc_lower):
+    elif re.search(r'\b(repair|maintenance|window|roof|boiler|heating|hot water|door|lift|gutter|structure)s?\b', desc_lower):
         return "Repairs & Maintenance"
-    elif re.search(r'\b(rehousing|allocation|transfer|decant|homeless|lettings|bidding|housing register)\b', desc_lower):
+    elif re.search(r'\b(rehousing|allocation|transfer|decant|homeless|letting|bidding|housing register)s?\b', desc_lower):
         return "Rehousing & Allocations"
-    elif re.search(r'\b(complaint|handling|escalation|stages?|response)\b', desc_lower):
+    elif re.search(r'\b(complaint|handling|escalation|stage|response)s?\b', desc_lower):
         return "Complaint Handling"
     else:
         return "Other"
@@ -309,26 +272,30 @@ def extract_indicators(text):
     
     return vuln, comm, record
 
-def extract_orders_remedies(text):
-    """Extracts remedy orders issued by the Ombudsman from the Orders section."""
-    clean_text = ' '.join(text.split())
-    
-    ord_match = re.search(r'\b(Orders|Putting things right)\b(.*?)(Recommendations|Discretion|Learning|$)', clean_text, re.IGNORECASE)
-    if not ord_match:
-        pos = clean_text.lower().rfind("orders")
-        if pos != -1:
-            section_text = clean_text[pos:]
-        else:
-            section_text = clean_text[-3000:]
-    else:
-        section_text = ord_match.group(2).strip()
-        
-    section_lower = section_text.lower()
-    
+def extract_orders_remedies(sections: dict):
+    """Extracts remedy orders issued by the Ombudsman from the Orders section.
+
+    Accepts a sections dict from split_sections() and targets only the
+    orders/putting-things-right section to avoid false positives from
+    words like 'apology' or 'repair' appearing in narrative text.
+    """
+    # Prefer the authoritative orders section; fall back to full text.
+    section_text = (
+        sections.get('orders_and_recommendations')
+        or sections.get('orders_1')
+        or sections.get('orders')
+        or sections.get('putting_things_right_1')
+        or sections.get('putting_things_right')
+        or sections.get('full_doc', '')
+    )
+    clean_text = ' '.join(section_text.split())
+
+    section_lower = clean_text.lower()
+
     apology = 1 if re.search(r'\b(apologise|apology|apologize|apology order)\b', section_lower) else 0
     repairs = 1 if re.search(r'\b(repair|remedial|works|inspect|survey|contractor|installation|fitting|clean|treatment|damp|specific action order|reconsider)\b', section_lower) else 0
     policy_review = 1 if re.search(r'\b(review|training|train|staff training|retrain|re-train|policy review|procedure review|audit)\b', section_lower) else 0
-    
+
     return apology, repairs, policy_review
 
 def extract_timescales(text):
@@ -478,6 +445,35 @@ def compile_database():
     total_cases = len(rows)
     print(f"Loaded {total_cases} raw cases. Commencing parsing...")
     
+    # Pre-scan decisions to build landlord type mapping and collapse name variants
+    print("Pre-scanning decisions to build landlord type mapping...")
+    landlord_type_map = {}
+    for url, title, date_str, landlord_name, full_text in rows:
+        landlord_clean = canonical_landlord_name(landlord_name)
+        if landlord_clean not in landlord_type_map or not landlord_type_map[landlord_clean]:
+            sections = split_sections(full_text)
+            ltype = extract_landlord_type(sections)
+            if ltype:
+                ltype_clean = ltype.strip()
+                if ltype_clean.lower() in ('housing association', 'housing association.'):
+                    ltype_clean = 'Housing Association'
+                elif ltype_clean.lower() in ('local authority', 'local authority.'):
+                    ltype_clean = 'Local Authority'
+                elif ltype_clean.lower() in ('local authority / almo or tmo', 'local authority / almo or tmo.'):
+                    ltype_clean = 'Local Authority / ALMO or TMO'
+                landlord_type_map[landlord_clean] = ltype_clean
+                
+    # Fallback heuristics for landlords with missing types
+    for landlord in set(canonical_landlord_name(r[3]) for r in rows):
+        if landlord not in landlord_type_map or not landlord_type_map[landlord]:
+            landlord_lower = landlord.lower()
+            if any(x in landlord_lower for x in ('council', 'borough of', 'city of', 'corporation of', 'district', 'authority')):
+                landlord_type_map[landlord] = 'Local Authority'
+            elif any(x in landlord_lower for x in ('association', 'trust', 'homes', 'peabody', 'clarion', 'sanctuary', 'guinness', 'riverside', 'l&q', 'group', 'society')):
+                landlord_type_map[landlord] = 'Housing Association'
+            else:
+                landlord_type_map[landlord] = 'Unknown'
+
     landlord_cache = {}  # name -> id
     
     cases_inserted = 0
@@ -489,10 +485,10 @@ def compile_database():
         url, title, date_str, landlord_name, full_text = row
         
         # 1. Clean and standardize landlord
-        landlord_clean = landlord_name.strip() if landlord_name else "Unknown Landlord"
+        landlord_clean = canonical_landlord_name(landlord_name)
         if landlord_clean not in landlord_cache:
-            dest_cursor.execute("INSERT OR IGNORE INTO landlords (name) VALUES (?)", (landlord_clean,))
-            # Fetch id
+            stock = LANDLORD_STOCK_SIZES.get(landlord_clean)
+            dest_cursor.execute("INSERT OR IGNORE INTO landlords (name, stock_size) VALUES (?, ?)", (landlord_clean, stock))
             dest_cursor.execute("SELECT id FROM landlords WHERE name = ?", (landlord_clean,))
             landlord_cache[landlord_clean] = dest_cursor.fetchone()[0]
             
@@ -500,6 +496,7 @@ def compile_database():
         
         # 2. Extract Case ID & clean Date
         case_id = parse_case_id(title, url)
+        date_iso, amended = clean_date_to_iso(date_str)
         
         # 2b. Detect document format and split sections (used by all downstream extractors)
         doc_format = detect_format(full_text)
@@ -513,10 +510,10 @@ def compile_database():
 
         # 5. Extract Indicators and Remedies
         vuln, comm, record = extract_indicators(full_text)
-        apology, repairs, review_train = extract_orders_remedies(full_text)
+        apology, repairs, review_train = extract_orders_remedies(sections)
 
         # 5b. New field extractions
-        landlord_type = extract_landlord_type(sections)
+        landlord_type = landlord_type_map.get(landlord_clean, "Unknown")
         tenancy_type = extract_tenancy_type(sections)
         cited_statutes = extract_legal_citations(full_text)
         
@@ -534,10 +531,32 @@ def compile_database():
                 is_upheld = 1 if find in UPHELD_DETERMINATIONS else 0
                 findings.append((comp, find, is_upheld))
 
-        case_upheld = 0
-        issue_rows = []
+        # De-duplicate to at most one Complaint Handling finding per case
+        deduped_findings = []
+        ch_findings = []
+        outcome_priority = {
+            'Severe Maladministration': 6,
+            'Maladministration': 5,
+            'Service Failure': 4,
+            'Reasonable Redress': 3,
+            'No Maladministration': 2,
+            'Outside Jurisdiction': 1,
+        }
+        
         for sentence, outcome, is_upheld in findings:
             category = classify_category(sentence)
+            if category == "Complaint Handling":
+                ch_findings.append((sentence, outcome, category, is_upheld))
+            else:
+                deduped_findings.append((sentence, outcome, category, is_upheld))
+                
+        if ch_findings:
+            best_ch = max(ch_findings, key=lambda x: outcome_priority.get(x[1], 0))
+            deduped_findings.append(best_ch)
+            
+        case_upheld = 0
+        issue_rows = []
+        for sentence, outcome, category, is_upheld in deduped_findings:
             if is_upheld:
                 case_upheld = 1
             issue_rows.append((sentence, outcome, category, is_upheld, extracted_from))
@@ -546,33 +565,32 @@ def compile_database():
         try:
             dest_cursor.execute("""
                 INSERT INTO cases (
-                    case_id, url, title, decision_date, landlord_id, total_compensation_ordered,
+                    case_id, url, title, decision_date, decision_date_iso, amended_at_review, landlord_id, total_compensation_ordered,
                     stage_1_days_est, stage_2_days_est, timescales_exceeded_est,
                     is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
                     vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est,
                     doc_format, landlord_type, tenancy_type, full_text
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc,
+                case_id, url, title, date_str, date_iso, amended, landlord_id, total_comp, s1, s2, exc,
                 case_upheld, apology, repairs, review_train, vuln, comm, record,
                 doc_format, landlord_type, tenancy_type, full_text
             ))
             cases_inserted += 1
         except sqlite3.IntegrityError:
-            import hashlib
             case_id = case_id + "_" + hashlib.md5(url.encode()).hexdigest()[:4]
             dest_cursor.execute("""
                 INSERT INTO cases (
-                    case_id, url, title, decision_date, landlord_id, total_compensation_ordered,
+                    case_id, url, title, decision_date, decision_date_iso, amended_at_review, landlord_id, total_compensation_ordered,
                     stage_1_days_est, stage_2_days_est, timescales_exceeded_est,
                     is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
                     vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est,
                     doc_format, landlord_type, tenancy_type, full_text
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                case_id, url, title, date_str, landlord_id, total_comp, s1, s2, exc,
+                case_id, url, title, date_str, date_iso, amended, landlord_id, total_comp, s1, s2, exc,
                 case_upheld, apology, repairs, review_train, vuln, comm, record,
                 doc_format, landlord_type, tenancy_type, full_text
             ))

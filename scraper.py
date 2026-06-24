@@ -13,6 +13,8 @@ import argparse
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 # Config
 DB_NAME = "ombudsman_decisions.db"
@@ -22,6 +24,17 @@ DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 DELAY = 1.5
+
+# Configure HTTP session with retries and exponential backoff
+session = requests.Session()
+retries = Retry(
+    total=5,
+    backoff_factor=1,
+    status_forcelist=[500, 502, 503, 504],
+    raise_on_status=False
+)
+session.mount('https://', HTTPAdapter(max_retries=retries))
+session.mount('http://', HTTPAdapter(max_retries=retries))
 
 def init_db(db_path=DB_NAME):
     """Initializes the SQLite database and creates the decisions table if it doesn't exist."""
@@ -86,7 +99,7 @@ def harvest_urls(start_page=1, end_page=10, urls_file=URLS_FILE):
         print(f"Fetching archive page {page}/{end_page}: {target_url}")
         
         try:
-            r = requests.get(target_url, headers=DEFAULT_HEADERS, timeout=15)
+            r = session.get(target_url, headers=DEFAULT_HEADERS, timeout=15)
             r.raise_for_status()
         except Exception as e:
             print(f"Error fetching page {page}: {e}")
@@ -135,7 +148,7 @@ def clean_date_str(date_str):
 def extract_decision_data(url):
     """Fetches a detailed decision page and extracts Title, Date, Landlord, and Full Text."""
     print(f"Extracting detail content from: {url}")
-    r = requests.get(url, headers=DEFAULT_HEADERS, timeout=15)
+    r = session.get(url, headers=DEFAULT_HEADERS, timeout=15)
     r.raise_for_status()
     
     soup = BeautifulSoup(r.text, 'html.parser')
