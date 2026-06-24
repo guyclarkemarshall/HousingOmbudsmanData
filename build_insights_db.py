@@ -9,6 +9,7 @@ import re
 import sys
 import sqlite3
 import hashlib
+import csv
 
 from section_splitter import (
     detect_format, split_sections, extract_complaint_finding_pairs,
@@ -21,6 +22,7 @@ from section_splitter import (
 # Config
 SRC_DB = "ombudsman_decisions.db"
 DEST_DB = "ombudsman_insights.db"
+DEST_CSV = "ombudsman_insights_cases.csv"
 
 # Set standard output to UTF-8 to prevent console encoding exceptions
 sys.stdout.reconfigure(encoding='utf-8')
@@ -563,6 +565,22 @@ def compile_database():
     compensation_inserted = 0
     citations_inserted = 0
     
+# --- ADD THIS BLOCK BEFORE THE LOOP ---
+    csv_headers = [
+        "case_id", "url", "title", "decision_date", "decision_date_iso", "amended_at_review", "landlord_id", "total_compensation_ordered",
+        "stage_1_days_est", "stage_2_days_est", "timescales_exceeded_est",
+        "is_upheld_est", "apology_ordered_est", "repairs_ordered_est", "review_or_training_ordered_est",
+        "vulnerability_mentioned_est", "communication_failure_est", "record_keeping_failure_est",
+        "doc_format", "landlord_type", "tenancy_type",
+        "sec_preamble", "sec_background", "sec_complaint", "sec_assessment_findings", "sec_policies_procedures",
+        "sec_complaint_handling", "sec_our_decision", "sec_putting_things_right", "sec_orders", "sec_recommendations"
+    ]
+    
+    csv_file = open(DEST_CSV, mode='w', newline='', encoding='utf-8')
+    csv_writer = csv.writer(csv_file)
+    csv_writer.writerow(csv_headers)
+    # --------------------------------------
+
     for idx, row in enumerate(rows, 1):
         url, title, date_str, landlord_name, full_text = row
         
@@ -647,54 +665,48 @@ def compile_database():
             issue_rows.append((sentence, outcome, category, is_upheld, extracted_from))
             
         # 7. Insert Case
+
+        # 7. Insert Case
+        # Package data into a single tuple to avoid duplicating it 3 times
+        case_data = (
+            case_id, url, title, date_str, date_iso, amended, landlord_id, total_comp, s1, s2, exc,
+            case_upheld, apology, repairs, review_train, vuln, comm, record,
+            doc_format, landlord_type, tenancy_type,
+            sec_cols['sec_preamble'], sec_cols['sec_background'], sec_cols['sec_complaint'],
+            sec_cols['sec_assessment_findings'], sec_cols['sec_policies_procedures'],
+            sec_cols['sec_complaint_handling'], sec_cols['sec_our_decision'],
+            sec_cols['sec_putting_things_right'], sec_cols['sec_orders'],
+            sec_cols['sec_recommendations']
+        )
+
+        insert_query = """
+            INSERT INTO cases (
+                case_id, url, title, decision_date, decision_date_iso, amended_at_review, landlord_id, total_compensation_ordered,
+                stage_1_days_est, stage_2_days_est, timescales_exceeded_est,
+                is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
+                vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est,
+                doc_format, landlord_type, tenancy_type,
+                sec_preamble, sec_background, sec_complaint, sec_assessment_findings, sec_policies_procedures,
+                sec_complaint_handling, sec_our_decision, sec_putting_things_right, sec_orders, sec_recommendations
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+
         try:
-            dest_cursor.execute("""
-                INSERT INTO cases (
-                    case_id, url, title, decision_date, decision_date_iso, amended_at_review, landlord_id, total_compensation_ordered,
-                    stage_1_days_est, stage_2_days_est, timescales_exceeded_est,
-                    is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
-                    vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est,
-                    doc_format, landlord_type, tenancy_type,
-                    sec_preamble, sec_background, sec_complaint, sec_assessment_findings, sec_policies_procedures,
-                    sec_complaint_handling, sec_our_decision, sec_putting_things_right, sec_orders, sec_recommendations
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                case_id, url, title, date_str, date_iso, amended, landlord_id, total_comp, s1, s2, exc,
-                case_upheld, apology, repairs, review_train, vuln, comm, record,
-                doc_format, landlord_type, tenancy_type,
-                sec_cols['sec_preamble'], sec_cols['sec_background'], sec_cols['sec_complaint'],
-                sec_cols['sec_assessment_findings'], sec_cols['sec_policies_procedures'],
-                sec_cols['sec_complaint_handling'], sec_cols['sec_our_decision'],
-                sec_cols['sec_putting_things_right'], sec_cols['sec_orders'],
-                sec_cols['sec_recommendations']
-            ))
+            dest_cursor.execute(insert_query, case_data)
             cases_inserted += 1
-        except sqlite3.IntegrityError:
-            case_id = case_id + "_" + hashlib.md5(url.encode()).hexdigest()[:4]
-            dest_cursor.execute("""
-                INSERT INTO cases (
-                    case_id, url, title, decision_date, decision_date_iso, amended_at_review, landlord_id, total_compensation_ordered,
-                    stage_1_days_est, stage_2_days_est, timescales_exceeded_est,
-                    is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
-                    vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est,
-                    doc_format, landlord_type, tenancy_type,
-                    sec_preamble, sec_background, sec_complaint, sec_assessment_findings, sec_policies_procedures,
-                    sec_complaint_handling, sec_our_decision, sec_putting_things_right, sec_orders, sec_recommendations
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                case_id, url, title, date_str, date_iso, amended, landlord_id, total_comp, s1, s2, exc,
-                case_upheld, apology, repairs, review_train, vuln, comm, record,
-                doc_format, landlord_type, tenancy_type,
-                sec_cols['sec_preamble'], sec_cols['sec_background'], sec_cols['sec_complaint'],
-                sec_cols['sec_assessment_findings'], sec_cols['sec_policies_procedures'],
-                sec_cols['sec_complaint_handling'], sec_cols['sec_our_decision'],
-                sec_cols['sec_putting_things_right'], sec_cols['sec_orders'],
-                sec_cols['sec_recommendations']
-            ))
-            cases_inserted += 1
+            csv_writer.writerow(case_data)  # Write to CSV
             
+        except sqlite3.IntegrityError:
+            # Handle duplicate case IDs
+            case_id = case_id + "_" + hashlib.md5(url.encode()).hexdigest()[:4]
+            # Swap out the old case_id for the new one at index 0
+            case_data = (case_id,) + case_data[1:] 
+            
+            dest_cursor.execute(insert_query, case_data)
+            cases_inserted += 1
+            csv_writer.writerow(case_data)  # Write to CSV
+ 
         # 8. Insert Issues
         for sentence, outcome, category, is_upheld, extracted_from in issue_rows:
             dest_cursor.execute("""
@@ -727,6 +739,7 @@ def compile_database():
     # Clean up and final report
     src_conn.close()
     dest_conn.close()
+    csv_file.close()  # Close the CSV file
     
     print("\nInsights database compilation completed successfully!")
     print(f"Relational records saved:")
