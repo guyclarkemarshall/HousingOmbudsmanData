@@ -61,6 +61,24 @@ class TestCasesTableColumns:
         assert columns["tenancy_type"] == "TEXT"
         conn.close()
 
+    @pytest.mark.parametrize("col_name", [
+        "sec_preamble", "sec_background", "sec_complaint", 
+        "sec_assessment_findings", "sec_policies_procedures", 
+        "sec_complaint_handling", "sec_our_decision", 
+        "sec_putting_things_right", "sec_orders", "sec_recommendations"
+    ])
+    def test_cases_table_has_section_columns(self, tmp_db, col_name):
+        """Verify cases table includes new section columns."""
+        conn = sqlite3.connect(tmp_db)
+        cursor = conn.cursor()
+
+        cursor.execute("PRAGMA table_info(cases)")
+        columns = {row[1]: row[2] for row in cursor.fetchall()}
+
+        assert col_name in columns
+        assert columns[col_name] == "TEXT"
+        conn.close()
+
 
 class TestLegalCitationsTable:
     """Test that legal_citations table is created with correct structure."""

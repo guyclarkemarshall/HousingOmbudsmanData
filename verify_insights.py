@@ -227,6 +227,20 @@ def verify_insights_db(db_path=DB_NAME):
     for statute, cnt, pct in cursor.fetchall():
         print(f"  - {statute:<55}: {cnt:>5} ({pct:>5.1f}% of cases)")
 
+    # 12. Section columns population rate
+    print("\n=== SECTION COLUMNS POPULATION RATE ===")
+    sections_list = [
+        "sec_preamble", "sec_background", "sec_complaint", 
+        "sec_assessment_findings", "sec_policies_procedures", 
+        "sec_complaint_handling", "sec_our_decision", 
+        "sec_putting_things_right", "sec_orders", "sec_recommendations"
+    ]
+    for s in sections_list:
+        cursor.execute(f"SELECT COUNT(*) FROM cases WHERE {s} IS NOT NULL")
+        non_null = cursor.fetchone()[0]
+        pct = (non_null * 100.0 / cases_count) if cases_count > 0 else 0.0
+        print(f"  - {s:<25}: {non_null:>5} ({pct:>5.1f}%)")
+
     conn.close()
     return True
 

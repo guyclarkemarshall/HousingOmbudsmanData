@@ -81,7 +81,16 @@ def init_dest_db(db_path):
             doc_format TEXT,
             landlord_type TEXT,
             tenancy_type TEXT,
-            full_text TEXT,
+            sec_preamble TEXT,
+            sec_background TEXT,
+            sec_complaint TEXT,
+            sec_assessment_findings TEXT,
+            sec_policies_procedures TEXT,
+            sec_complaint_handling TEXT,
+            sec_our_decision TEXT,
+            sec_putting_things_right TEXT,
+            sec_orders TEXT,
+            sec_recommendations TEXT,
             FOREIGN KEY (landlord_id) REFERENCES landlords(id)
         )
     """)
@@ -399,6 +408,79 @@ def extract_tenancy_type(sections: dict) -> str | None:
     return m.group(1).strip() if m else None
 
 
+def extract_section_columns(sections: dict) -> dict:
+    """Unifies and extracts document sections for database storage.
+    
+    Returns a dict with 10 keys (sec_preamble, sec_background, etc.)
+    where each value is a cleaned string or None.
+    """
+    def clean(val):
+        if not val:
+            return None
+        s = val.strip()
+        return s if s else None
+
+    # 1. Preamble
+    preamble = clean(sections.get('preamble'))
+    
+    # 2. Background
+    bg_keys = ('background', 'background_and_summary_of_events', 'summary_of_events')
+    background = clean(next((sections[k] for k in bg_keys if k in sections), None))
+    
+    # 3. Complaint
+    comp_keys = ('the_complaint', 'what_the_complaint_is_about')
+    complaint = next((sections[k] for k in comp_keys if k in sections), None)
+    if not complaint:
+        parts = [sections[k] for k in sorted(sections.keys()) if k.startswith('complaint_')]
+        if parts:
+            complaint = "\n\n".join(parts)
+    complaint = clean(complaint)
+            
+    # 4. Assessment & Findings
+    finds_keys = ('assessment_and_findings', 'assessment_and_finding', 'what_we_found', 'what_we_found_and_why')
+    findings = next((sections[k] for k in finds_keys if k in sections), None)
+    if not findings:
+        parts = [sections[k] for k in sorted(sections.keys()) if k.startswith('finding_')]
+        if parts:
+            findings = "\n\n".join(parts)
+    findings = clean(findings)
+            
+    # 5. Policies & Procedures
+    policies = clean(sections.get('policies_and_procedures'))
+    
+    # 6. Complaint Handling
+    handling = clean(sections.get('complaint_handling'))
+    
+    # 7. Our Decision
+    dec_keys = ('determination', 'our_decision_determination', 'summary_of_reasons')
+    decision = clean(next((sections[k] for k in dec_keys if k in sections), None))
+    
+    # 8. Putting things right
+    ptr_keys = ('putting_things_right', 'conclusion')
+    putting_right = clean(next((sections[k] for k in ptr_keys if k in sections), None))
+    
+    # 9. Orders
+    ord_keys = ('orders', 'orders_and_recommendations', 'orders_and_recommendation')
+    orders = clean(next((sections[k] for k in ord_keys if k in sections), None))
+    
+    # 10. Recommendations
+    rec_keys = ('recommendations', 'recommendation')
+    recommendations = clean(next((sections[k] for k in rec_keys if k in sections), None))
+    
+    return {
+        'sec_preamble': preamble,
+        'sec_background': background,
+        'sec_complaint': complaint,
+        'sec_assessment_findings': findings,
+        'sec_policies_procedures': policies,
+        'sec_complaint_handling': handling,
+        'sec_our_decision': decision,
+        'sec_putting_things_right': putting_right,
+        'sec_orders': orders,
+        'sec_recommendations': recommendations
+    }
+
+
 STATUTES = [
     "Housing Act 1996",
     "Homes (Fitness for Human Habitation) Act 2018",
@@ -517,6 +599,9 @@ def compile_database():
         tenancy_type = extract_tenancy_type(sections)
         cited_statutes = extract_legal_citations(full_text)
         
+        # 5c. Extract text sections for separate columns
+        sec_cols = extract_section_columns(sections)
+        
         # 6. Parse issues/determinations using the table-or-text fallback logic
         pairs = extract_pairs(full_text)
         extracted_from = 'table'
@@ -569,13 +654,20 @@ def compile_database():
                     stage_1_days_est, stage_2_days_est, timescales_exceeded_est,
                     is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
                     vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est,
-                    doc_format, landlord_type, tenancy_type, full_text
+                    doc_format, landlord_type, tenancy_type,
+                    sec_preamble, sec_background, sec_complaint, sec_assessment_findings, sec_policies_procedures,
+                    sec_complaint_handling, sec_our_decision, sec_putting_things_right, sec_orders, sec_recommendations
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 case_id, url, title, date_str, date_iso, amended, landlord_id, total_comp, s1, s2, exc,
                 case_upheld, apology, repairs, review_train, vuln, comm, record,
-                doc_format, landlord_type, tenancy_type, full_text
+                doc_format, landlord_type, tenancy_type,
+                sec_cols['sec_preamble'], sec_cols['sec_background'], sec_cols['sec_complaint'],
+                sec_cols['sec_assessment_findings'], sec_cols['sec_policies_procedures'],
+                sec_cols['sec_complaint_handling'], sec_cols['sec_our_decision'],
+                sec_cols['sec_putting_things_right'], sec_cols['sec_orders'],
+                sec_cols['sec_recommendations']
             ))
             cases_inserted += 1
         except sqlite3.IntegrityError:
@@ -586,13 +678,20 @@ def compile_database():
                     stage_1_days_est, stage_2_days_est, timescales_exceeded_est,
                     is_upheld_est, apology_ordered_est, repairs_ordered_est, review_or_training_ordered_est,
                     vulnerability_mentioned_est, communication_failure_est, record_keeping_failure_est,
-                    doc_format, landlord_type, tenancy_type, full_text
+                    doc_format, landlord_type, tenancy_type,
+                    sec_preamble, sec_background, sec_complaint, sec_assessment_findings, sec_policies_procedures,
+                    sec_complaint_handling, sec_our_decision, sec_putting_things_right, sec_orders, sec_recommendations
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 case_id, url, title, date_str, date_iso, amended, landlord_id, total_comp, s1, s2, exc,
                 case_upheld, apology, repairs, review_train, vuln, comm, record,
-                doc_format, landlord_type, tenancy_type, full_text
+                doc_format, landlord_type, tenancy_type,
+                sec_cols['sec_preamble'], sec_cols['sec_background'], sec_cols['sec_complaint'],
+                sec_cols['sec_assessment_findings'], sec_cols['sec_policies_procedures'],
+                sec_cols['sec_complaint_handling'], sec_cols['sec_our_decision'],
+                sec_cols['sec_putting_things_right'], sec_cols['sec_orders'],
+                sec_cols['sec_recommendations']
             ))
             cases_inserted += 1
             
