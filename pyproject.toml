@@ -5,7 +5,9 @@ description = "UK Housing Ombudsman decisions dataset scraper and insights compi
 requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.15.0",
+    "pandas>=3.0.3",
     "requests>=2.34.2",
+    "scikit-learn>=1.9.0",
 ]
 
 [tool.setuptools]

@@ -7,4 +7,6 @@ __pycache__/
 *.egg-info/
 ombudsman_predictive.csv
 ombudsman_insights_cases.csv
-
+predictive_db_train.csv
+predictive_db_test.csv
+predictive_model.pkl
