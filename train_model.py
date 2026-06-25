@@ -39,11 +39,9 @@ COMPLAINT_CATEGORIES = [
 ]
 
 FINDING_OUTCOMES = [
-    "No Maladministration",
+    "No Maladministration / Reasonable Redress",
     "Service Failure",
-    "Maladministration",
-    "Severe Maladministration",
-    "Reasonable Redress",
+    "Maladministration / Severe Maladministration",
     "Outside Jurisdiction"
 ]
 
@@ -199,6 +197,16 @@ def prepare_target_matrices(rows):
     y_complaints = np.zeros((len(rows), len(COMPLAINT_CATEGORIES)), dtype=int)
     y_findings = np.zeros((len(rows), len(FINDING_OUTCOMES)), dtype=int)
     
+    # Bucketing map for outcomes
+    outcome_buckets = {
+        "No Maladministration": "No Maladministration / Reasonable Redress",
+        "Reasonable Redress": "No Maladministration / Reasonable Redress",
+        "Service Failure": "Service Failure",
+        "Maladministration": "Maladministration / Severe Maladministration",
+        "Severe Maladministration": "Maladministration / Severe Maladministration",
+        "Outside Jurisdiction": "Outside Jurisdiction"
+    }
+    
     for i, row in enumerate(rows):
         # Examine up to 10 complaint/finding pairs
         for pair_idx in range(10):
@@ -212,8 +220,9 @@ def prepare_target_matrices(rows):
                     
             if find_val:
                 find_clean = find_val.strip()
-                if find_clean in outcome_to_idx:
-                    y_findings[i, outcome_to_idx[find_clean]] = 1
+                bucketed_find = outcome_buckets.get(find_clean, find_clean)
+                if bucketed_find in outcome_to_idx:
+                    y_findings[i, outcome_to_idx[bucketed_find]] = 1
                     
     return y_complaints, y_findings
 

@@ -37,14 +37,14 @@ def test_prepare_target_matrices():
     rep_idx = COMPLAINT_CATEGORIES.index("Repairs & Maintenance")
     assert y_comp[0, rep_idx] == 0
     
-    # Maladministration should be 1
-    mal_idx = FINDING_OUTCOMES.index("Maladministration")
+    # Maladministration / Severe Maladministration should be 1 (since dummy_row contains Maladministration)
+    mal_idx = FINDING_OUTCOMES.index("Maladministration / Severe Maladministration")
     assert y_find[0, mal_idx] == 1
     
     # Service Failure should be 1
     sf_idx = FINDING_OUTCOMES.index("Service Failure")
     assert y_find[0, sf_idx] == 1
     
-    # Severe Maladministration should be 0
-    sev_idx = FINDING_OUTCOMES.index("Severe Maladministration")
-    assert y_find[0, sev_idx] == 0
+    # No Maladministration / Reasonable Redress should be 0
+    no_mal_idx = FINDING_OUTCOMES.index("No Maladministration / Reasonable Redress")
+    assert y_find[0, no_mal_idx] == 0
