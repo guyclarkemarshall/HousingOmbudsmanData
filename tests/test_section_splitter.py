@@ -19,9 +19,14 @@ from section_splitter import detect_format, split_sections, extract_complaint_fi
 # ---------------------------------------------------------------------------
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'ombudsman_decisions.db')
+db_exists = os.path.exists(DB_PATH)
+
+requires_db = pytest.mark.skipif(not db_exists, reason="ombudsman_decisions.db not found")
 
 
 def _load_doc(doc_id: int) -> str:
+    if not db_exists:
+        return ""
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute('SELECT full_text FROM decisions WHERE id = ?', (doc_id,)).fetchone()
     conn.close()
@@ -67,9 +72,11 @@ NO_HEADINGS_DOC = (
 # ---------------------------------------------------------------------------
 
 class TestDetectFormat:
+    @requires_db
     def test_new_format_real_doc(self):
         assert detect_format(NEW_FORMAT_DOC) == 'new'
 
+    @requires_db
     def test_old_format_real_doc(self):
         assert detect_format(OLD_FORMAT_DOC) == 'old'
 
@@ -89,20 +96,24 @@ class TestDetectFormat:
 # ---------------------------------------------------------------------------
 
 class TestSplitSections:
+    @requires_db
     def test_old_format_has_background(self):
         secs = split_sections(OLD_FORMAT_DOC)
         assert 'background' in secs
 
+    @requires_db
     def test_old_format_real_doc_sections(self):
         secs = split_sections(OLD_FORMAT_DOC)
         # id=14251 has Background, Assessment and findings, Determination, Orders
         assert 'background' in secs
         assert 'assessment_and_findings' in secs
 
+    @requires_db
     def test_new_format_has_our_investigation(self):
         secs = split_sections(NEW_FORMAT_DOC)
         assert 'our_investigation' in secs
 
+    @requires_db
     def test_new_format_real_doc_sections(self):
         secs = split_sections(NEW_FORMAT_DOC)
         # Should have background and investigation-related sections
@@ -121,6 +132,7 @@ class TestSplitSections:
         secs = split_sections(NO_HEADINGS_DOC)
         assert secs == {'full_doc': NO_HEADINGS_DOC}
 
+    @requires_db
     def test_sections_are_non_empty_strings(self):
         secs = split_sections(OLD_FORMAT_DOC)
         for key, val in secs.items():
@@ -138,6 +150,7 @@ class TestSplitSections:
 # ---------------------------------------------------------------------------
 
 class TestExtractComplaintFindingPairs:
+    @requires_db
     def test_old_format_returns_empty_list(self):
         pairs = extract_complaint_finding_pairs(OLD_FORMAT_DOC)
         assert pairs == []
@@ -146,10 +159,12 @@ class TestExtractComplaintFindingPairs:
         pairs = extract_complaint_finding_pairs(SYNTHETIC_OLD)
         assert pairs == []
 
+    @requires_db
     def test_new_format_real_doc_returns_pairs(self):
         pairs = extract_complaint_finding_pairs(NEW_FORMAT_DOC)
         assert len(pairs) >= 1
 
+    @requires_db
     def test_new_format_pair_structure(self):
         pairs = extract_complaint_finding_pairs(NEW_FORMAT_DOC)
         for pair in pairs:
@@ -160,6 +175,7 @@ class TestExtractComplaintFindingPairs:
             assert isinstance(pair['outcome'], str)
             assert isinstance(pair['analysis'], str)
 
+    @requires_db
     def test_new_format_outcome_is_normalised(self):
         # outcome values should match normalised labels, not raw lowercase
         pairs = extract_complaint_finding_pairs(NEW_FORMAT_DOC)

@@ -17,9 +17,14 @@ from build_insights_db import extract_landlord_type, extract_tenancy_type, extra
 from section_splitter import split_sections
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'ombudsman_decisions.db')
+db_exists = os.path.exists(DB_PATH)
+
+requires_db = pytest.mark.skipif(not db_exists, reason="ombudsman_decisions.db not found")
 
 
 def _load_doc(doc_id: int) -> str:
+    if not db_exists:
+        return ""
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute('SELECT full_text FROM decisions WHERE id = ?', (doc_id,)).fetchone()
     conn.close()
@@ -179,6 +184,7 @@ class TestExtractLegalCitations:
 # Smoke test: real old-format document (id=28943)
 # ---------------------------------------------------------------------------
 
+@requires_db
 class TestSmokeRealDoc:
 
     def test_smoke_old_format_doc(self):
