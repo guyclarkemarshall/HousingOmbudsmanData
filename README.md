@@ -16,7 +16,7 @@ The dataset contains **16,611** extracted housing dispute decisions covering cas
 
 ## Licensing & Attribution
 
-This dataset is distributed under the **Creative Commons Attribution 4.0 International (CC-BY-4.0)** license. See the [LICENSE](LICENSE) file for details.
+This project is distributed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See the [LICENSE](LICENSE) file for details.
 
 ### Source Acknowledgment
 - **Source**: All raw decision reports are sourced directly from the [UK Housing Ombudsman website](https://www.housing-ombudsman.org.uk/decisions/).
@@ -288,6 +288,38 @@ uv run build-insights
 ```
 
 This reads `ombudsman_decisions.db` and regenerates `ombudsman_insights.db` using text heuristics.
+
+---
+
+## Rebuilding the Complaints Database
+
+To compile a simplified flat database of complaints and their determinations (along with a denormalized CSV):
+
+```bash
+uv run build-complaints
+```
+
+To verify the integrity and counts of the complaints database:
+
+```bash
+uv run verify-complaints
+```
+
+---
+
+## Rebuilding the Predictive Modeling Database
+
+To compile the flat dataset mapping complaint procedures to their sequential determinations (used for training predictive models):
+
+```bash
+uv run build-predictive
+```
+
+To verify the schema, counts, and sample records of the predictive modeling database:
+
+```bash
+uv run verify-predictive
+```
 
 ---
 

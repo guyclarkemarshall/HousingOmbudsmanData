@@ -1,0 +1,17 @@
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  check-issue-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for issue reference in PR
+        run: |
+          BODY="${{ github.event.pull_request.body }}"
+          if ! echo "$BODY" | grep -qE '(Closes|Fixes|Resolves) #[0-9]+'; then
+            echo "PR must reference an issue (e.g. 'Closes #123')"
+            exit 1
+          fi
