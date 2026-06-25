@@ -40,19 +40,14 @@ def verify_database():
     timeline_count = cursor.fetchone()[0]
     print(f"Records with non-empty timeline text: {timeline_count} ({timeline_count / count * 100:.1f}%)")
 
-    # Get count of records with procedure text
-    cursor.execute("SELECT COUNT(*) FROM predictive_cases WHERE complaint_procedure_text IS NOT NULL AND length(complaint_procedure_text) > 0")
-    procedure_count = cursor.fetchone()[0]
-    print(f"Records with non-empty procedure text: {procedure_count} ({procedure_count / count * 100:.1f}%)")
-    
     # Get count of cases with at least one complaint finding pair
     cursor.execute("SELECT COUNT(*) FROM predictive_cases WHERE complaint_1 IS NOT NULL")
     pairs_count = cursor.fetchone()[0]
     print(f"Cases with at least one parsed complaint-finding pair: {pairs_count} ({pairs_count / count * 100:.1f}%)")
-
+ 
     # Query sample rows
     cursor.execute("""
-        SELECT case_id, landlord_name, length(complaint_timeline_text), complaint_1, finding_1
+        SELECT case_id, length(complaint_timeline_text), complaint_1, finding_1
         FROM predictive_cases
         WHERE complaint_1 IS NOT NULL
         LIMIT 3
@@ -63,10 +58,9 @@ def verify_database():
     for row in rows:
         print("-" * 80)
         print(f"Case ID: {row[0]}")
-        print(f"Landlord: {row[1]}")
-        print(f"Timeline Length: {row[2]} characters")
-        print(f"Complaint 1: {row[3][:120]}...")
-        print(f"Finding 1: {row[4]}")
+        print(f"Timeline Length: {row[1]} characters")
+        print(f"Complaint 1: {row[2][:120]}...")
+        print(f"Finding 1: {row[3]}")
         
     conn.close()
     return True

@@ -29,10 +29,13 @@ def test_init_dest_db(clean_db):
     columns = {col[1]: col[2] for col in cursor.fetchall()}
     
     assert "case_id" in columns
-    assert "url" in columns
-    assert "landlord_name" in columns
     assert "complaint_timeline_text" in columns
-    assert "complaint_procedure_text" in columns
+    assert "url" not in columns
+    assert "landlord_name" not in columns
+    assert "complaint_procedure_text" not in columns
+    assert "title" not in columns
+    assert "decision_date" not in columns
+    assert "decision_date_iso" not in columns
     
     # Verify sequential complaint-finding pairs columns
     for i in range(1, 11):

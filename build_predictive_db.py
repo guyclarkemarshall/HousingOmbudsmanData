@@ -112,13 +112,7 @@ def init_dest_db(db_path):
         CREATE TABLE predictive_cases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             case_id TEXT UNIQUE NOT NULL,
-            url TEXT,
-            title TEXT,
-            landlord_name TEXT,
-            decision_date TEXT,
-            decision_date_iso TEXT,
             complaint_timeline_text TEXT,
-            complaint_procedure_text TEXT,
             complaint_1 TEXT,
             finding_1 TEXT,
             complaint_2 TEXT,
@@ -144,7 +138,6 @@ def init_dest_db(db_path):
     
     # Create index for analytics optimization
     cursor.execute("CREATE INDEX idx_pc_case ON predictive_cases(case_id)")
-    cursor.execute("CREATE INDEX idx_pc_landlord ON predictive_cases(landlord_name)")
     
     conn.commit()
     conn.close()
@@ -157,8 +150,7 @@ def export_to_csv():
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT case_id, url, title, landlord_name, decision_date, decision_date_iso,
-               complaint_timeline_text, complaint_procedure_text,
+        SELECT case_id, complaint_timeline_text,
                complaint_1, finding_1, complaint_2, finding_2,
                complaint_3, finding_3, complaint_4, finding_4,
                complaint_5, finding_5, complaint_6, finding_6,
@@ -169,8 +161,7 @@ def export_to_csv():
     rows = cursor.fetchall()
     
     headers = [
-        "Case ID", "URL", "Title", "Landlord Name", "Decision Date", "Decision Date ISO",
-        "Complaint Timeline Text", "Complaint Procedure Text",
+        "Case ID", "Complaint Timeline Text",
         "Complaint 1", "Finding 1", "Complaint 2", "Finding 2",
         "Complaint 3", "Finding 3", "Complaint 4", "Finding 4",
         "Complaint 5", "Finding 5", "Complaint 6", "Finding 6",
@@ -248,15 +239,6 @@ def main():
     for idx, row in enumerate(rows, 1):
         url, title, decision_date, landlord_name, full_text = row
         case_id = parse_case_id(title, url)
-        date_iso, _ = clean_date_to_iso(decision_date)
-        
-        # Fallback to parsing landlord from title if empty or 'Unknown Landlord'
-        if not landlord_name or landlord_name.strip().lower() == 'unknown landlord':
-            m = re.match(r'^(.*?)\s*\(\d{7,9}\)', title)
-            if m:
-                landlord_name = m.group(1).strip()
-                
-        landlord_clean = canonical_landlord_name(landlord_name)
         
         # Split document into sections
         sections = split_sections(full_text)
@@ -264,12 +246,6 @@ def main():
         
         # Extract Timeline Text
         timeline_text = extract_timeline_until_referral(full_text, sections)
-            
-        # Extract Complaint Procedure Handling Text
-        procedure_keys = ('complaint_handling', 'policies_and_procedures')
-        procedure_text = next((sections[k].strip() for k in procedure_keys if k in sections), None)
-        if not procedure_text:
-            procedure_text = ""
             
         # Extract complaint-finding pairs
         if doc_format == 'new':
@@ -317,18 +293,18 @@ def main():
         # Insert record into database
         dest_cursor.execute("""
             INSERT OR IGNORE INTO predictive_cases (
-                case_id, url, title, landlord_name, decision_date, decision_date_iso,
-                complaint_timeline_text, complaint_procedure_text,
+                case_id,
+                complaint_timeline_text,
                 complaint_1, finding_1, complaint_2, finding_2,
                 complaint_3, finding_3, complaint_4, finding_4,
                 complaint_5, finding_5, complaint_6, finding_6,
                 complaint_7, finding_7, complaint_8, finding_8,
                 complaint_9, finding_9, complaint_10, finding_10
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            case_id, url, title, landlord_clean, decision_date, date_iso,
-            timeline_text, procedure_text,
+            case_id,
+            timeline_text,
             cf_cols[0], cf_cols[1], cf_cols[2], cf_cols[3],
             cf_cols[4], cf_cols[5], cf_cols[6], cf_cols[7],
             cf_cols[8], cf_cols[9], cf_cols[10], cf_cols[11],
