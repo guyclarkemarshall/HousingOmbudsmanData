@@ -1,0 +1,254 @@
+apiVersion: v1.0.0
+kind: DataProduct
+id: 4945c4a1-531f-4c11-9be2-928169b487b3
+version: 1.0.0
+status: draft
+name: housing-ombudsman-decisions
+domain: housing-regulation
+tenant: OpenDataContractStandard
+productCreatedTs: "2026-06-24T00:00:00Z"
+
+tags:
+  - housing
+  - ombudsman
+  - uk
+  - social-housing
+  - regulatory-decisions
+  - llm-extracted
+
+description:
+  purpose: >
+    Structured, machine-readable records of published decisions by the UK
+    Housing Ombudsman Service. Covers formal complaints brought by social
+    housing residents against registered landlords and local authorities in
+    England after exhaustion of the landlord's internal complaints process.
+    Enables analysis of landlord performance, determination patterns,
+    compensation awards, complaint-handling timescales, and policy compliance
+    across the social housing sector.
+  limitations: >
+    All columns with an '_est' suffix are LLM-estimated values extracted from
+    free-text decision PDFs and should be treated as estimates, not ground
+    truth. Extraction fidelity is lower for cases in the legacy 'old'
+    doc_format (pre-2020 Report style). Landlord type and tenancy type values
+    are not normalised — raw extracted strings may vary. Compensation amounts
+    are in GBP. Jurisdiction is England only; the Housing Ombudsman does not
+    cover Scotland, Wales, or Northern Ireland. While residents are not named
+    in published decisions, the full_text field reproduces verbatim decision
+    text and is classified restricted in the accompanying data contract.
+  usage: >
+    Suitable for landlord benchmarking, policy compliance analysis,
+    compensation trend modelling, and as a training or evaluation dataset for
+    NLP and LLM systems operating in the social housing regulatory domain.
+    Analysts should join cases → issues for issue-level determination analysis,
+    and cases → compensation_orders for monetary remedy analysis. The
+    full_text column in cases is the authoritative source and should be used
+    to verify any _est field.
+
+authoritativeDefinitions:
+  - type: terms_and_conditions
+    url: "https://www.housing-ombudsman.org.uk/about-us/terms-and-conditions/"
+  - type: specification
+    url: "https://bitol-io.github.io/open-data-product-standard/"
+  - type: data_contract
+    url: "https://github.com/guyclarkemarshall/HousingOmbudsmanData/blob/main/housing_ombudsman.odcs.yaml"
+
+inputPorts:
+  - name: housing-ombudsman-website
+    version: "1.0.0"
+    contractId: 00000000-0000-0000-0000-000000000000
+    tags:
+      - scraping
+      - web
+    customProperties:
+      - property: sourceUrl
+        value: "https://www.housing-ombudsman.org.uk/decisions/"
+        description: >
+          The Housing Ombudsman's public decisions search page. Decisions are
+          published as HTML/PDF on a rolling basis, typically within days of
+          signing.
+      - property: scrapeFrequency
+        value: daily
+        description: >
+          Recommended scrape cadence to capture new publications without
+          significant lag.
+      - property: scraperScript
+        value: scraper.py
+        description: >
+          Python script that fetches decision URLs, downloads full text, and
+          populates ombudsman_decisions.db.
+
+outputPorts:
+  - name: ombudsman-insights-sqlite
+    version: "1.0.0"
+    contractId: 496f1c72-b8f3-4158-9090-3e1bef5e438e
+    type: tables
+    inputContracts:
+      - id: ombudsman-decisions-raw-v1
+        version: "1.0.0"
+    description: >
+      Structured SQLite database (ombudsman_insights.db) containing five
+      relational tables: landlords, cases, issues, compensation_orders, and
+      legal_citations. Cases are linked to child tables via case_id. This is
+      the primary analytical output of the pipeline — LLM-extracted fields
+      with _est suffix are ready for aggregation and benchmarking queries.
+    tags:
+      - sqlite
+      - structured
+      - analytical
+    customProperties:
+      - property: tables
+        value: "landlords, cases, issues, compensation_orders, legal_citations"
+        description: The five tables exposed by this output port.
+      - property: rowCounts
+        value: "cases: ~16,611 | issues: ~42,416 | compensation_orders: ~33,708 | legal_citations: ~35,412 | landlords: ~723"
+        description: Approximate row counts as of contract creation date.
+      - property: filePath
+        value: ombudsman_insights.db
+        description: Relative path to the SQLite database from the repository root.
+      - property: compressedArchive
+        value: ombudsman_insights.zip
+        description: >
+          Versioned ZIP archive of the insights database, committed to the
+          repository for reproducibility. Regenerated on each full pipeline
+          run.
+
+  - name: ombudsman-decisions-sqlite
+    version: "1.0.0"
+    type: tables
+    description: >
+      Raw SQLite database (ombudsman_decisions.db) containing a single
+      'decisions' table with the full scraped text of each published Ombudsman
+      decision. This is the upstream input to the LLM extraction pipeline and
+      the authoritative source for all _est columns in the insights database.
+    tags:
+      - sqlite
+      - raw
+      - source-of-truth
+    customProperties:
+      - property: tables
+        value: decisions
+        description: Single table containing id, url, title, decision_date, landlord, full_text.
+      - property: filePath
+        value: ombudsman_decisions.db
+        description: Relative path to the SQLite database from the repository root.
+      - property: compressedArchive
+        value: ombudsman_decisions.zip
+        description: >
+          Versioned ZIP archive of the raw decisions database, committed to
+          the repository for reproducibility.
+
+managementPorts:
+  - name: github-repository
+    content: discoverability
+    type: rest
+    url: "https://github.com/guyclarkemarshall/HousingOmbudsmanData"
+    description: >
+      Source code repository containing scrapers, LLM extraction pipeline,
+      tests, domain ontology, and versioned database archives.
+    tags:
+      - github
+      - source-control
+
+  - name: github-issues
+    content: control
+    type: rest
+    url: "https://github.com/guyclarkemarshall/HousingOmbudsmanData/issues"
+    description: >
+      Issue tracker for bug reports, data quality issues, extraction failures,
+      and feature requests.
+    tags:
+      - github
+      - issue-tracking
+
+  - name: domain-ontology
+    content: discoverability
+    type: rest
+    url: "https://github.com/guyclarkemarshall/HousingOmbudsmanData/blob/main/docs/ontology.md"
+    description: >
+      Formal domain ontology defining entities, predicates, taxonomies
+      (Determination, Category, LandlordType, TenancyType, OrderType), and
+      temporal process flow for the Housing Ombudsman decisions domain.
+    tags:
+      - ontology
+      - documentation
+
+  - name: odcs-data-contract
+    content: dictionary
+    type: rest
+    url: "https://github.com/guyclarkemarshall/HousingOmbudsmanData/blob/main/housing_ombudsman.odcs.yaml"
+    description: >
+      ODCS v3.1.0 data contract for the ombudsman_insights.db schema.
+      Defines table structures, column types, data quality rules, and SLAs.
+    tags:
+      - odcs
+      - data-contract
+
+  - name: github-actions-ci
+    content: observability
+    type: rest
+    url: "https://github.com/guyclarkemarshall/HousingOmbudsmanData/actions"
+    description: >
+      GitHub Actions CI/CD pipeline providing run history and status for the
+      scraper and LLM extraction pipeline. Consumers can monitor pipeline
+      health and identify failed or stale runs here.
+    tags:
+      - github
+      - observability
+      - pipeline
+
+support:
+  - channel: GitHub Issues
+    url: "https://github.com/guyclarkemarshall/HousingOmbudsmanData/issues"
+    tool: ticket
+    scope: issues
+    description: Primary channel for bug reports, data quality issues, and feature requests.
+
+  - channel: Owner Email
+    url: "mailto:diego@nextdegree.org"
+    tool: email
+    scope: interactive
+    description: Direct contact for access requests and partnership enquiries.
+
+team:
+  name: housing-ombudsman-data
+  description: Maintainers of the Housing Ombudsman Decisions data product.
+  members:
+    - username: diego@nextdegree.org
+      name: Diego Carvallo
+      role: Owner
+      dateIn: "2026-06-24"
+
+customProperties:
+  - property: jurisdiction
+    value: England
+    description: >
+      The Housing Ombudsman's statutory jurisdiction covers registered social
+      landlords (RSLs) and local authorities managing social housing stock in
+      England only.
+
+  - property: dataClassification
+    value: public
+    description: >
+      All decision text is published openly by the Housing Ombudsman Service.
+      No personal data beyond what appears in the published decisions is
+      stored. Residents are anonymised in published decisions.
+
+  - property: extractionMethod
+    value: LLM-assisted parsing
+    description: >
+      The pipeline applies a large language model to each decision's full_text
+      to extract structured fields. All LLM-derived fields carry an '_est'
+      suffix in the schema. The ODCS data contract (contractId
+      496f1c72-b8f3-4158-9090-3e1bef5e438e) includes SQL quality rules for
+      validating extraction outputs.
+
+  - property: pipelineEntryPoint
+    value: build_insights_db.py
+    description: >
+      Python script that orchestrates the full extraction pipeline: reads
+      ombudsman_decisions.db, applies LLM extraction, and writes
+      ombudsman_insights.db.
+
+  - property: license
+    value: Apache 2.0
+    description: Repository and data product are released under the Apache 2.0 license.

@@ -1,0 +1,737 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: 496f1c72-b8f3-4158-9090-3e1bef5e438e
+version: 1.0.0
+status: draft
+name: housing-ombudsman-decisions
+domain: housing-regulation
+tenant: OpenDataContractStandard
+contractCreatedTs: "2026-06-23T00:00:00Z"
+
+tags:
+  - housing
+  - ombudsman
+  - uk
+  - social-housing
+  - regulatory-decisions
+  - llm-extracted
+
+description:
+  purpose: >
+    Provides structured, machine-readable records of published decisions by the
+    UK Housing Ombudsman Service covering social housing complaints. Each case
+    contains one or more issue-level findings (determinations), compensation
+    orders, and legal citations extracted from the Ombudsman's published PDFs.
+    The data enables analysis of landlord performance, remedies awarded,
+    complaint-handling timescales, and policy compliance across housing
+    associations and local authorities in England.
+  limitations: >
+    Determinations, compensation totals, landlord type, and tenancy type are
+    extracted via LLM-assisted parsing and carry an '_est' suffix indicating
+    they are estimates. Categories and is_upheld flags in the issues table are
+    similarly estimated. The decisions table contains raw scraped text and is
+    the authoritative source; derived fields in the insights tables are
+    secondary. Cases decided before 2020 use a legacy 'old' document format
+    that may yield lower extraction fidelity. Compensation amounts are in GBP.
+  usage: >
+    Use cases include landlord benchmarking, policy compliance analysis,
+    compensation trend modelling, and training datasets for NLP/LLM systems
+    operating in the social housing regulatory domain.
+  authoritativeDefinitions:
+    - type: terms_and_conditions
+      url: "https://www.housing-ombudsman.org.uk/about-us/terms-and-conditions/"
+    - type: business_policy
+      url: "https://bitol-io.github.io/open-data-contract-standard/v3.1.0/"
+
+schema:
+  - name: landlords
+    logicalType: object
+    physicalType: table
+    description: Registered social landlords and local authorities named as respondents in Ombudsman cases.
+    tags:
+      - landlord
+      - reference
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 100
+        unit: rows
+        dimension: coverage
+        severity: warning
+        description: >
+          The landlords table should contain at least 100 distinct landlords.
+          A lower count indicates an incomplete load.
+    properties:
+      - name: id
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Surrogate primary key (autoincrement).
+        classification: public
+
+      - name: name
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        unique: true
+        criticalDataElement: true
+        description: >
+          Official registered name of the landlord as it appears in Ombudsman
+          publications.
+        classification: public
+        quality:
+          - type: library
+            metric: nullValues
+            mustBe: 0
+            unit: percent
+            dimension: completeness
+            severity: error
+            description: Landlord name must never be null.
+
+  - name: cases
+    logicalType: object
+    physicalType: table
+    description: >
+      Central record for each formal Housing Ombudsman complaint. One row per
+      published case. All _est columns are LLM-estimated values extracted from
+      the full_text field. Cases from the 'old' doc_format have lower extraction
+      fidelity than 'new' style documents.
+    tags:
+      - case
+      - ombudsman-decision
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 10000
+        unit: rows
+        dimension: coverage
+        severity: warning
+        description: >
+          The cases table is expected to contain more than 10,000 records. A
+          significantly lower count may indicate an incomplete data load or
+          failed scrape.
+      - type: sql
+        query: "SELECT COUNT(*) FROM cases WHERE is_upheld_est NOT IN (0,1) AND is_upheld_est IS NOT NULL"
+        mustBe: 0
+        dimension: conformity
+        severity: error
+        description: All boolean _est integer flags must be 0 or 1.
+      - type: sql
+        query: "SELECT COUNT(*) FROM cases WHERE (timescales_exceeded_est NOT IN (0,1) AND timescales_exceeded_est IS NOT NULL) OR (apology_ordered_est NOT IN (0,1) AND apology_ordered_est IS NOT NULL) OR (repairs_ordered_est NOT IN (0,1) AND repairs_ordered_est IS NOT NULL) OR (review_or_training_ordered_est NOT IN (0,1) AND review_or_training_ordered_est IS NOT NULL) OR (vulnerability_mentioned_est NOT IN (0,1) AND vulnerability_mentioned_est IS NOT NULL) OR (communication_failure_est NOT IN (0,1) AND communication_failure_est IS NOT NULL) OR (record_keeping_failure_est NOT IN (0,1) AND record_keeping_failure_est IS NOT NULL)"
+        mustBe: 0
+        dimension: conformity
+        severity: error
+        description: All boolean _est integer flags must be 0 or 1 (or null).
+      - type: sql
+        query: "SELECT COUNT(*) FROM cases c LEFT JOIN (SELECT case_id, SUM(amount) AS total FROM compensation_orders GROUP BY case_id) co ON c.case_id = co.case_id WHERE ABS(COALESCE(c.total_compensation_ordered, 0) - COALESCE(co.total, 0)) > 0.01"
+        mustBe: 0
+        dimension: consistency
+        severity: error
+        description: cases.total_compensation_ordered must equal the sum of compensation_orders.amount for the same case_id.
+    properties:
+      - name: id
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Surrogate primary key (autoincrement).
+        classification: public
+
+      - name: case_id
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        unique: true
+        criticalDataElement: true
+        description: >
+          Ombudsman reference number (e.g. '202347433'). Used as the natural
+          key across all child tables. Corresponds to the numeric suffix in the
+          Ombudsman's published decision URL.
+        classification: public
+        quality:
+          - type: library
+            metric: nullValues
+            mustBe: 0
+            unit: percent
+            dimension: completeness
+            severity: error
+            description: case_id must never be null — it is the natural key used across all child tables.
+          - type: library
+            metric: duplicateValues
+            mustBe: 0
+            unit: rows
+            dimension: uniqueness
+            severity: error
+            description: case_id must be globally unique — one row per published Ombudsman decision.
+
+      - name: url
+        logicalType: string
+        physicalType: TEXT
+        required: false
+        description: Canonical URL of the published Ombudsman decision page.
+        classification: public
+
+      - name: title
+        logicalType: string
+        physicalType: TEXT
+        required: false
+        description: >
+          Full case title as published (e.g. "London & Quadrant Housing Trust
+          (202347433)").
+        classification: public
+
+      - name: decision_date
+        logicalType: string
+        physicalType: TEXT
+        required: false
+        description: >
+          Date of the Ombudsman's published decision in free-text format as it
+          appears in the document (e.g. "26 May 2026"). Not normalised to ISO
+          8601 due to variability in source formatting.
+        classification: public
+
+      - name: landlord_id
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: Foreign key to landlords.id identifying the respondent landlord.
+        classification: public
+        relationships:
+          - type: foreignKey
+            to: landlords.id
+
+      - name: total_compensation_ordered
+        logicalType: number
+        physicalType: REAL
+        required: false
+        description: >
+          Sum of all individual compensation_orders for this case, in GBP.
+          Defaults to 0.0. This is the Ombudsman-ordered figure; it excludes
+          any compensation the landlord may have offered at Stage 1 or Stage 2.
+        classification: public
+        quality:
+          - type: sql
+            query: "SELECT COUNT(*) FROM cases WHERE total_compensation_ordered < 0"
+            mustBe: 0
+            dimension: conformity
+            severity: error
+            description: Total compensation ordered must be zero or positive.
+
+      - name: stage_1_days_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          Estimated number of calendar days the landlord took to issue its
+          Stage 1 formal complaint response. Null where not determinable from
+          the decision text. LLM-estimated.
+        classification: public
+
+      - name: stage_2_days_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          Estimated number of calendar days for Stage 2 formal complaint
+          response. Null where no Stage 2 occurred or not determinable.
+          LLM-estimated.
+        classification: public
+
+      - name: timescales_exceeded_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          1 if the Ombudsman found that Complaint Handling Code timescales were
+          exceeded at Stage 1 or Stage 2; 0 otherwise. LLM-estimated boolean
+          stored as integer.
+        classification: public
+
+      - name: is_upheld_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          1 if at least one issue in the case was determined as
+          Maladministration, Severe Maladministration, or Service Failure; 0
+          if all issues returned No Maladministration or Reasonable Redress
+          only. LLM-estimated boolean stored as integer.
+        classification: public
+
+      - name: apology_ordered_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          1 if the Ombudsman issued an Order requiring a written apology; 0
+          otherwise. LLM-estimated.
+        classification: public
+
+      - name: repairs_ordered_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          1 if the Ombudsman issued a repairs/works Order; 0 otherwise.
+          LLM-estimated.
+        classification: public
+
+      - name: review_or_training_ordered_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          1 if the Ombudsman ordered a policy review or staff training; 0
+          otherwise. LLM-estimated.
+        classification: public
+
+      - name: vulnerability_mentioned_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          1 if the decision text references resident vulnerability (health,
+          disability, mental health, age, or children); 0 otherwise.
+          LLM-estimated.
+        classification: public
+
+      - name: communication_failure_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          1 if the Ombudsman found a communication failure; 0 otherwise.
+          LLM-estimated.
+        classification: public
+
+      - name: record_keeping_failure_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          1 if the Ombudsman found a record-keeping failure; 0 otherwise.
+          LLM-estimated.
+        classification: public
+
+      - name: doc_format
+        logicalType: string
+        physicalType: TEXT
+        required: false
+        description: >
+          Document structure of the source PDF. 'new' = Investigation-style
+          with repeating Complaint/Finding sections (predominant post-2024);
+          'old' = legacy Report style. The format affects extraction fidelity
+          for _est fields.
+        classification: public
+        quality:
+          - type: sql
+            query: "SELECT COUNT(*) FROM cases WHERE doc_format NOT IN ('new','old') AND doc_format IS NOT NULL"
+            mustBe: 0
+            dimension: conformity
+            severity: error
+            description: doc_format must be 'new' or 'old'.
+
+      - name: landlord_type
+        logicalType: string
+        physicalType: TEXT
+        required: false
+        description: >
+          Classification of the respondent landlord as extracted from the
+          decision. Normalised values include 'Housing Association', 'Local
+          Authority', 'For Profit', 'Voluntary'. Raw values may vary due to
+          extraction variability. LLM-estimated.
+        classification: public
+        quality:
+          - type: sql
+            query: "SELECT COUNT(*) FROM cases WHERE landlord_type NOT IN ('Housing Association','Local Authority','For Profit','Voluntary') AND landlord_type IS NOT NULL"
+            mustBe: 0
+            dimension: conformity
+            severity: warning
+            description: landlord_type should be one of the four normalised values. Warnings indicate LLM extraction variants.
+
+      - name: tenancy_type
+        logicalType: string
+        physicalType: TEXT
+        required: false
+        description: >
+          The complainant's tenure classification as extracted from the
+          decision. Normalised values include 'Assured Tenancy', 'Secure
+          Tenancy', 'Shared Ownership', 'Leaseholder', etc. Raw values may
+          vary. LLM-estimated.
+        classification: public
+        quality:
+          - type: sql
+            query: "SELECT COUNT(*) FROM cases WHERE tenancy_type NOT IN ('Assured Tenancy','Secure Tenancy','Shared Ownership','Leaseholder','Introductory Tenancy','Starter Tenancy','Assured Shorthold Tenancy','Demoted Tenancy') AND tenancy_type IS NOT NULL"
+            mustBe: 0
+            dimension: conformity
+            severity: warning
+            description: tenancy_type should be one of the normalised TenancyType values. Warnings indicate LLM extraction variants.
+
+      - name: full_text
+        logicalType: string
+        physicalType: TEXT
+        required: false
+        description: >
+          Complete extracted text of the Ombudsman's published decision. This
+          is the authoritative source from which all _est columns are derived.
+          Contains the original decision language including background,
+          findings, orders, and recommendations.
+        classification: restricted
+
+  - name: issues
+    logicalType: object
+    physicalType: table
+    description: >
+      Individual complaint sub-parts within an accepted Ombudsman case. Each
+      Issue receives a distinct determination. A case typically contains 2–4
+      issues. Complaint Handling is a process-tier issue that co-occurs with
+      substantive issues rather than replacing them.
+    tags:
+      - issue
+      - determination
+      - category
+    quality:
+      - type: sql
+        query: "SELECT COUNT(*) FROM issues i LEFT JOIN cases c ON i.case_id = c.case_id WHERE c.case_id IS NULL"
+        mustBe: 0
+        dimension: consistency
+        severity: error
+        description: All issue rows must reference a valid parent case (referential integrity).
+      - type: sql
+        query: "SELECT COUNT(*) FROM issues WHERE determination IS NOT NULL AND determination NOT IN ('No Maladministration','Service Failure','Maladministration','Severe Maladministration','Reasonable Redress')"
+        mustBe: 0
+        dimension: conformity
+        severity: error
+        description: >
+          determination must be one of the five valid enum values. 'Reasonable
+          Redress' is a resolution pathway, not a severity level.
+    properties:
+      - name: id
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Surrogate primary key (autoincrement).
+        classification: public
+
+      - name: case_id
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        description: >
+          Reference to the parent case. Cascade-deletes with the parent case.
+          Matches cases.case_id.
+        classification: public
+        relationships:
+          - type: foreignKey
+            to: cases.case_id
+
+      - name: description
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        description: >
+          Wording of the specific complaint sub-matter as it appears in the
+          Ombudsman's decision (e.g. "The landlord's response to reports of a
+          water leak"). LLM-extracted.
+        classification: public
+
+      - name: determination
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        criticalDataElement: true
+        description: >
+          The Ombudsman's formal ruling on this issue. Severity scale
+          (ascending): 'No Maladministration' < 'Service Failure' <
+          'Maladministration' < 'Severe Maladministration'. 'Reasonable
+          Redress' is a resolution pathway, not a severity level — it
+          indicates a proportionate remedy was offered and accepted.
+          LLM-estimated.
+        classification: public
+        quality:
+          - type: library
+            metric: nullValues
+            mustBe: 0
+            unit: percent
+            dimension: completeness
+            severity: error
+            description: Every issue must have a formal determination.
+
+      - name: category
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        description: >
+          Two-tier complaint category. Tier 1 (substantive): 'Damp & Mould',
+          'Leaks & Water Ingress', 'Repairs & Maintenance', 'Pest Control',
+          'Anti-Social Behaviour (ASB)', 'Estate Management', 'Rent & Service
+          Charges', 'Rehousing & Allocations', 'Building Safety', 'Fire
+          Safety', 'Domestic Abuse', 'Mutual Exchange', 'Right to Buy / Right
+          to Acquire', 'Leasehold & Service Charges', 'Planned & Major Works'.
+          Tier 2 (process): 'Complaint Handling'. 'Other' for uncategorised.
+          LLM-estimated.
+        classification: public
+        quality:
+          - type: library
+            metric: nullValues
+            mustBe: 0
+            unit: percent
+            dimension: completeness
+            severity: error
+            description: Every issue must have a category.
+
+      - name: is_upheld_est
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+        description: >
+          1 if determination is 'Maladministration', 'Severe
+          Maladministration', or 'Service Failure'; 0 otherwise (including
+          'Reasonable Redress'). LLM-estimated boolean stored as integer.
+        classification: public
+
+  - name: compensation_orders
+    logicalType: object
+    physicalType: table
+    description: >
+      Individual compensation awards issued by the Ombudsman within a case.
+      Each row represents one monetary order. A case may have multiple
+      compensation orders relating to different issues. Amounts are in GBP.
+    tags:
+      - compensation
+      - order
+      - remedy
+    quality:
+      - type: sql
+        query: "SELECT COUNT(*) FROM compensation_orders co LEFT JOIN cases c ON co.case_id = c.case_id WHERE c.case_id IS NULL"
+        mustBe: 0
+        dimension: consistency
+        severity: error
+        description: All compensation_order rows must reference a valid parent case (referential integrity).
+      - type: sql
+        query: "SELECT COUNT(*) FROM compensation_orders WHERE amount <= 0"
+        mustBe: 0
+        dimension: conformity
+        severity: error
+        description: All compensation orders must have a positive GBP amount.
+    properties:
+      - name: id
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Surrogate primary key (autoincrement).
+        classification: public
+
+      - name: case_id
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        description: >
+          Reference to the parent case. Cascade-deletes with the parent case.
+        classification: public
+        relationships:
+          - type: foreignKey
+            to: cases.case_id
+
+      - name: amount
+        logicalType: number
+        physicalType: REAL
+        required: true
+        criticalDataElement: true
+        description: >
+          Compensation amount in GBP ordered by the Ombudsman. Excludes any
+          landlord-offered compensation at Stage 1/2.
+        classification: public
+        quality:
+          - type: library
+            metric: nullValues
+            mustBe: 0
+            unit: percent
+            dimension: completeness
+            severity: error
+            description: Compensation amount must never be null.
+
+      - name: description
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        description: >
+          Wording of the specific compensation order as it appears in the
+          decision (e.g. "£900 for distress and inconvenience caused by the
+          delayed repairs"). LLM-extracted.
+        classification: public
+
+  - name: legal_citations
+    logicalType: object
+    physicalType: table
+    description: >
+      Statutory instruments, approved schemes, and codes cited within an
+      Ombudsman decision. A case may cite multiple pieces of legislation.
+      Includes both jurisdictional boilerplate (Housing Act 1996, Housing
+      Ombudsman Scheme) and substantive instruments applied to the facts.
+    tags:
+      - legislation
+      - citation
+      - legal
+    quality:
+      - type: sql
+        query: "SELECT COUNT(*) FROM legal_citations lc LEFT JOIN cases c ON lc.case_id = c.case_id WHERE c.case_id IS NULL"
+        mustBe: 0
+        dimension: consistency
+        severity: error
+        description: All legal_citation rows must reference a valid parent case (referential integrity).
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 1000
+        unit: rows
+        dimension: coverage
+        severity: warning
+        description: legal_citations should contain at least 1,000 rows given case volume.
+      - type: sql
+        query: "SELECT COUNT(*) FROM (SELECT case_id, statute, COUNT(*) FROM legal_citations GROUP BY case_id, statute HAVING COUNT(*) > 1)"
+        mustBe: 0
+        dimension: uniqueness
+        severity: warning
+        description: Duplicate (case_id, statute) pairs indicate repeated LLM citation extraction.
+    properties:
+      - name: id
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Surrogate primary key (autoincrement).
+        classification: public
+
+      - name: case_id
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        description: >
+          Reference to the parent case. Cascade-deletes with the parent case.
+        classification: public
+        relationships:
+          - type: foreignKey
+            to: cases.case_id
+
+      - name: statute
+        logicalType: string
+        physicalType: TEXT
+        required: true
+        description: >
+          Name of the cited instrument as extracted from the decision text.
+          Common examples: 'Housing Act 1996', 'Landlord and Tenant Act 1985',
+          'Complaint Handling Code', 'Equality Act 2010', 'Social Housing
+          (Regulation) Act 2023', 'Housing Health and Safety Rating System
+          (HHSRS)', 'Decent Homes Standard'. LLM-extracted; names may vary
+          slightly across documents.
+        classification: public
+        quality:
+          - type: library
+            metric: nullValues
+            mustBe: 0
+            unit: percent
+            dimension: completeness
+            severity: error
+            description: Statute name must never be null.
+
+servers:
+  - server: ombudsman-sqlite-insights
+    type: local
+    path: ombudsman_insights.db
+    format: sqlite
+    environment: dev
+    description: >
+      Local SQLite database containing the structured insights tables (cases,
+      issues, compensation_orders, legal_citations, landlords) derived from
+      the Ombudsman decision PDFs.
+
+  - server: ombudsman-sqlite-decisions
+    type: local
+    path: ombudsman_decisions.db
+    format: sqlite
+    environment: dev
+    description: >
+      Local SQLite database containing the raw scraped decisions table with
+      full_text content from the Housing Ombudsman website.
+
+slaProperties:
+  - property: retention
+    value: 10
+    unit: y
+    description: >
+      Published Ombudsman decisions are public records retained indefinitely;
+      10-year minimum.
+
+  - property: frequency
+    value: 1
+    unit: d
+    description: >
+      New decisions are published by the Housing Ombudsman on a rolling basis.
+      A daily scrape cadence is recommended to capture new publications.
+
+team:
+  name: housing-ombudsman-data
+  description: Maintainers of the Housing Ombudsman Decisions data product.
+  members:
+    - username: diego@nextdegree.org
+      name: Diego Carvallo
+      role: Owner
+      dateIn: "2026-06-23"
+
+roles:
+  - role: public_read
+    access: read
+    description: >
+      Read access to all tables except the full_text column in cases (which
+      contains raw decision text that may reproduce personal details from
+      decision documents). Suitable for researchers and analysts.
+
+  - role: full_read
+    access: read
+    description: >
+      Full read access including the full_text column. Intended for LLM
+      pipeline operators and data engineers.
+    firstLevelApprovers: Owner
+
+support:
+  - channel: "https://github.com/guyclarkemarshall/HousingOmbudsmanData/issues"
+    tool: ticket
+    scope: issues
+
+customProperties:
+  - property: sourceUrl
+    value: "https://www.housing-ombudsman.org.uk/decisions/"
+    description: >
+      The Housing Ombudsman's published decisions search page from which data
+      is scraped.
+
+  - property: extractionMethod
+    value: LLM-assisted parsing
+    description: >
+      Fields with the _est suffix are extracted using a large language model
+      applied to the full_text of each decision. These values are estimates
+      and should be treated as such in any downstream analysis or modelling.
+
+  - property: jurisdiction
+    value: England
+    description: >
+      The Housing Ombudsman's jurisdiction covers registered social landlords
+      in England only.
+
+  - property: dataClassification
+    value: public
+    description: >
+      Structured fields (all tables except full_text) are publicly available data from the Housing Ombudsman website. The full_text column in cases is classified restricted as it reproduces verbatim decision text that may contain personal details.
