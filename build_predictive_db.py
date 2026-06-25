@@ -187,6 +187,44 @@ def export_to_csv():
     conn.close()
     print(f"Successfully exported {len(rows)} records to {DEST_CSV}")
 
+def extract_complaints_from_complaint_section(text):
+    if not text:
+        return []
+    text_clean = text.replace('\r\n', '\n').strip()
+    lines = text_clean.split('\n')
+    complaints = []
+    
+    intro_patterns = [
+        re.compile(r'complaint\s+is\s+about', re.I),
+        re.compile(r'complaints\s+are\s+about', re.I),
+        re.compile(r'resident\s+complained\s+about', re.I),
+        re.compile(r'representative\s+complained\s+about', re.I),
+    ]
+    
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+        if any(pat.search(line_clean) for pat in intro_patterns) and len(line_clean) < 80:
+            continue
+        line_clean = re.sub(r'^(?:[•\-\*\u2022\u2023\u2043\u25e6\u25c9\u25cb\u25cf\u25d8\u25d9]|\d+[\)\.]|[a-zA-Z][\)\.])\s*', '', line_clean).strip()
+        if line_clean and len(line_clean) > 5:
+            complaints.append(' '.join(line_clean.split()))
+            
+    if len(complaints) <= 1:
+        raw_text = ' '.join(text_clean.split())
+        matches = re.split(r'\b(?:\d+|[a-g])[\)\.]\s+', raw_text)
+        if len(matches) > 1:
+            potential_complaints = []
+            for part in matches[1:]:
+                part_clean = part.strip()
+                if part_clean and len(part_clean) > 5:
+                    potential_complaints.append(part_clean)
+            if potential_complaints:
+                complaints = potential_complaints
+                
+    return complaints
+
 def main():
     if not os.path.exists(SRC_DB):
         print(f"Error: Source database '{SRC_DB}' not found!")
@@ -211,10 +249,18 @@ def main():
         url, title, decision_date, landlord_name, full_text = row
         case_id = parse_case_id(title, url)
         date_iso, _ = clean_date_to_iso(decision_date)
+        
+        # Fallback to parsing landlord from title if empty or 'Unknown Landlord'
+        if not landlord_name or landlord_name.strip().lower() == 'unknown landlord':
+            m = re.match(r'^(.*?)\s*\(\d{7,9}\)', title)
+            if m:
+                landlord_name = m.group(1).strip()
+                
         landlord_clean = canonical_landlord_name(landlord_name)
         
         # Split document into sections
         sections = split_sections(full_text)
+        doc_format = detect_format(full_text)
         
         # Extract Timeline Text
         timeline_text = extract_timeline_until_referral(full_text, sections)
@@ -226,13 +272,37 @@ def main():
             procedure_text = ""
             
         # Extract complaint-finding pairs
-        pairs = extract_pairs(full_text)
-        
-        # Fallback to parsing text determinations if no table found
-        if not pairs:
+        if doc_format == 'new':
+            pairs = extract_pairs(full_text)
+            
+            # Fallback to parsing text determinations if no table found
+            if not pairs:
+                dets = parse_determinations(full_text)
+                if dets:
+                    pairs = [(sentence, outcome) for sentence, outcome, _ in dets]
+        else:
+            # Old format: Extract complaints from top and findings from bottom
+            comp_start_pat = re.compile(r'(?:^|\n)\s*the\s+compl\s*a\s*i\s*n\s*t\b', re.IGNORECASE)
+            comp_end_pat = re.compile(r'(?:^|\n)\s*(?:back\s*g\s*r\s*o\s*u\s*n\s*d|summary\s+of\s+events)\b', re.IGNORECASE)
+            
+            start_match = comp_start_pat.search(full_text)
+            complaint_sec = ""
+            if start_match:
+                end_match = comp_end_pat.search(full_text, start_match.end())
+                if end_match:
+                    complaint_sec = full_text[start_match.end():end_match.start()]
+                else:
+                    complaint_sec = full_text[start_match.end():start_match.end() + 2000]
+                    
+            complaints = extract_complaints_from_complaint_section(complaint_sec)
             dets = parse_determinations(full_text)
-            if dets:
-                pairs = [(sentence, outcome) for sentence, outcome, _ in dets]
+            findings = [outcome for _, outcome, _ in dets]
+            
+            pairs = []
+            for i in range(max(len(complaints), len(findings))):
+                comp = complaints[i] if i < len(complaints) else ""
+                find = findings[i] if i < len(findings) else ""
+                pairs.append((comp, find))
         
         # Initialize complaint/finding columns
         cf_cols = [None] * 20 # 10 pairs (complaint, finding)

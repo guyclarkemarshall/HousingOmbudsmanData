@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import pytest
-from build_predictive_db import init_dest_db, extract_timeline_until_referral
+from build_predictive_db import init_dest_db, extract_timeline_until_referral, extract_complaints_from_complaint_section
 
 TEST_DB = "test_predictive.db"
 
@@ -100,3 +100,44 @@ def test_extract_timeline_until_referral_old_format():
     assert "The landlord failed to resolve the issue." in timeline
     assert "The resident brought the complaint to the Ombudsman on 20 January 2026." in timeline
     assert "The Ombudsman contacted the landlord" not in timeline
+
+def test_extract_complaints_from_complaint_section():
+    # Test text with typical intro and list markers
+    text = (
+        "The complaint is about:\n"
+        "1. The landlord's response to the resident's reports of a leak.\n"
+        "2. The landlord's complaint handling.\n"
+        "3. The landlord's record keeping."
+    )
+    complaints = extract_complaints_from_complaint_section(text)
+    assert len(complaints) == 3
+    assert complaints[0] == "The landlord's response to the resident's reports of a leak."
+    assert complaints[1] == "The landlord's complaint handling."
+    assert complaints[2] == "The landlord's record keeping."
+
+    # Test text with bullet points
+    text_bullet = (
+        "The complaints are about:\n"
+        "• First complaint item.\n"
+        "- Second complaint item."
+    )
+    complaints_bullet = extract_complaints_from_complaint_section(text_bullet)
+    assert len(complaints_bullet) == 2
+    assert complaints_bullet[0] == "First complaint item."
+    assert complaints_bullet[1] == "Second complaint item."
+
+def test_pairing_old_format_no_leakage():
+    # Test zipping complaints from top and determinations from bottom
+    complaints = ["Complaint item A", "Complaint item B"]
+    findings = ["Service Failure", "No Maladministration"]
+    
+    pairs = []
+    for i in range(max(len(complaints), len(findings))):
+        comp = complaints[i] if i < len(complaints) else ""
+        find = findings[i] if i < len(findings) else ""
+        pairs.append((comp, find))
+        
+    assert len(pairs) == 2
+    assert pairs[0] == ("Complaint item A", "Service Failure")
+    assert pairs[1] == ("Complaint item B", "No Maladministration")
+

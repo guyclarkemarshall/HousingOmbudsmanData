@@ -29,12 +29,12 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 # Output patterns in order of specificity (No maladministration must precede maladministration)
 OUTCOME_PATTERNS = [
-    (r'\b(severe maladministration)\b', 'Severe Maladministration'),
-    (r'\b(no maladministration)\b', 'No Maladministration'),
-    (r'\b(maladministration)\b', 'Maladministration'),
-    (r'\b(service failure)\b', 'Service Failure'),
-    (r'\b(reasonable redress|satisfactory offer of redress|redress)\b', 'Reasonable Redress'),
-    (r'\b(outside jurisdiction|outside the jurisdiction)\b', 'Outside Jurisdiction')
+    (r'\bs\s*e\s*v\s*e\s*r\s*e\s+m\s*a\s*l\s*a\s*d\s*m\s*i\s*n\s*i\s*s\s*t\s*r\s*a\s*t\s*i\s*o\s*n\b', 'Severe Maladministration'),
+    (r'\bn\s*o\s+m\s*a\s*l\s*a\s*d\s*m\s*i\s*n\s*i\s*s\s*t\s*r\s*a\s*t\s*i\s*o\s*n\b', 'No Maladministration'),
+    (r'\bm\s*a\s*l\s*a\s*d\s*m\s*i\s*n\s*i\s*s\s*t\s*r\s*a\s*t\s*i\s*o\s*n\b', 'Maladministration'),
+    (r'\bs\s*e\s*r\s*v\s*i\s*c\s*e\s+f\s*a\s*i\s*l\s*u\s*r\s*e\b', 'Service Failure'),
+    (r'\br\s*e\s*a\s*s\s*o\s*n\s*a\s*b\s*l\s*e\s+r\s*e\s*d\s*r\s*e\s*s\s*s\b|\bredress\b', 'Reasonable Redress'),
+    (r'\bo\s*u\s*t\s*s\s*i\s*d\s*e\s+(?:t\s*h\s*e\s+)?j\s*u\s*r\s*i\s*s\s*d\s*i\s*c\s*t\s*i\s*o\s*n\b', 'Outside Jurisdiction')
 ]
 
 def init_dest_db(db_path):
@@ -532,8 +532,18 @@ def compile_database():
     # Pre-scan decisions to build landlord type mapping and collapse name variants
     print("Pre-scanning decisions to build landlord type mapping...")
     landlord_type_map = {}
+    landlord_set = set()
+    
     for url, title, date_str, landlord_name, full_text in rows:
+        # Fallback to parsing landlord from title if empty or 'Unknown Landlord'
+        if not landlord_name or landlord_name.strip().lower() == 'unknown landlord':
+            m = re.match(r'^(.*?)\s*\(\d{7,9}\)', title)
+            if m:
+                landlord_name = m.group(1).strip()
+                
         landlord_clean = canonical_landlord_name(landlord_name)
+        landlord_set.add(landlord_clean)
+        
         if landlord_clean not in landlord_type_map or not landlord_type_map[landlord_clean]:
             sections = split_sections(full_text)
             ltype = extract_landlord_type(sections)
@@ -548,7 +558,7 @@ def compile_database():
                 landlord_type_map[landlord_clean] = ltype_clean
                 
     # Fallback heuristics for landlords with missing types
-    for landlord in set(canonical_landlord_name(r[3]) for r in rows):
+    for landlord in landlord_set:
         if landlord not in landlord_type_map or not landlord_type_map[landlord]:
             landlord_lower = landlord.lower()
             if any(x in landlord_lower for x in ('council', 'borough of', 'city of', 'corporation of', 'district', 'authority')):
@@ -584,6 +594,12 @@ def compile_database():
     for idx, row in enumerate(rows, 1):
         url, title, date_str, landlord_name, full_text = row
         
+        # Fallback to parsing landlord from title if empty or 'Unknown Landlord'
+        if not landlord_name or landlord_name.strip().lower() == 'unknown landlord':
+            m = re.match(r'^(.*?)\s*\(\d{7,9}\)', title)
+            if m:
+                landlord_name = m.group(1).strip()
+                
         # 1. Clean and standardize landlord
         landlord_clean = canonical_landlord_name(landlord_name)
         if landlord_clean not in landlord_cache:

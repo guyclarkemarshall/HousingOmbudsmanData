@@ -6,3 +6,5 @@ __pycache__/
 .venv/
 *.egg-info/
 ombudsman_predictive.csv
+ombudsman_insights_cases.csv
+
