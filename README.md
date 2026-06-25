@@ -42,12 +42,12 @@ erDiagram
 
     landlords {
         int id PK
-        string name UNIQUE
+        string name "UNIQUE"
     }
 
     cases {
         int id PK
-        string case_id UNIQUE
+        string case_id "UNIQUE"
         string url
         string title
         string decision_date
